@@ -177,8 +177,6 @@ async function onClickTrainModel(){
 
   inputs = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
   outputs = outputs.slice(0, Math.floor(trainingsize / 100 * outputs.length));
-  const lastTrainEl = sma_vec.slice(0, Math.floor(trainingsize / 100 * sma_vec.length));
-  console.log(`[Training set]`, lastTrainEl);
   let callback = function(epoch, log) {
     let logHtml = document.getElementById("div_traininglog").innerHTML;
     logHtml = "<div>Epoch: " + (epoch + 1) + " (of "+ n_epochs +")" +
@@ -242,6 +240,10 @@ function onClickValidate() {
   // let timestamps_c = data_raw.map(function (val) {
   //   return val['timestamp'];
   // }).splice(window_size + Math.floor(trainingsize / 100 * val_unseen_x.length), data_raw.length);
+  let timestamps_sma = data_raw.map(function (val) {
+    return val['timestamp'];
+  }).splice(window_size, data_raw.length);
+
   let timestamps_c = data_raw.map(function (val) {
     return val['timestamp'];
   }).splice(window_size + Math.floor(trainingsize / 100 * inputs.length), inputs.length);
@@ -249,12 +251,11 @@ function onClickValidate() {
   let sma = sma_vec.map(function (val) { return val['avg']; });
   let prices = data_raw.map(function (val) { return val['price']; });
   // sma = sma.slice(0, Math.floor(trainingsize / 100 * sma.length));
-  // sma = sma.slice();
-  // console.log('sma', sma)
+  sma = sma.slice();
 
   let graph_plot = document.getElementById('div_validation_graph');
   Plotly.newPlot( graph_plot, [{ x: timestamps_a, y: prices, name: "Actual Price" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timestamps_b, y: sma, name: "Training Label (SMA)" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: timestamps_sma, y: sma, name: "Training Label (SMA)" }], { margin: { t: 0 } } );
   Plotly.plot( graph_plot, [{ x: timestamps_b, y: val_train_y, name: "Predicted (train)" }], { margin: { t: 0 } } );
   Plotly.plot( graph_plot, [{ x: timestamps_c, y: val_unseen_y, name: "Predicted (test)" }], { margin: { t: 0 } } );
 
@@ -331,4 +332,4 @@ function formatDate(date) {
 }
 
 ////// 
-document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 10, 15));
+document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 3, 15));
