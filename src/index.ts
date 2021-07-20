@@ -1,14 +1,15 @@
-import { getClines } from './utils';
+import $u from './utils';
 import { trainModel, makePredictions } from './model';
+import { time } from '@tensorflow/tfjs';
 let input_dataset: any = [];
 let result: any = [];
-let data_raw: any = [];
+let data_raw: el[] = [];
 let sma_vec: any = [];
 let window_size = 50;
 let trainingsize = 70;
 const Plotly: any = (window as any).Plotly;
 
-type Sma_vec = any;
+// type Sma_vec = any;
 
 // $(document).ready(function(){
 //   $('select').formSelect();
@@ -20,13 +21,25 @@ type Sma_vec = any;
 //   data_temporal_resolutions = freq.value;
 //   // $("#input_datafreq").text(freq);
 // }
+type el = {
+  timestamp: string,
+  price: number,
+  vol: number,
+  unix: number
+};
+type Sma_Vec = {
+  avg: number;
+  t: number;
+  set: el[];
+};
 
 async function onClickFetchData(symbol: string, epochs = 3, minutes = 720) {
   (document.getElementById("input_epochs") as any).value = epochs;
   // const clines = await getClines('binance','USDT-BTC', 999, 15); //  баржа, пара, период, TF в минутах
   // const symbol = 'USDT-BTC';
   console.log('Fetch', symbol);
-  const clines = await getClines('binance', symbol, 999, minutes); //  баржа, пара, период, TF в минутах
+  const clines = await $u.getClines('binance', symbol, 999, minutes); //  баржа, пара, период, TF в минутах
+  console.log({clines});
   // let ticker = document.getElementById("input_ticker").value;
   $("#btn_fetch_data").hide();
   $("#load_fetch_data").show();
@@ -58,7 +71,7 @@ async function onClickFetchData(symbol: string, epochs = 3, minutes = 720) {
         // let last_refreshed = data['Meta Data']['3. Last Refreshed'];
 
         data_raw = clines.map(c => {
-          return { timestamp: formatDate(c.close_time * 1000), price: c.close, unix: c.close_time * 1000 };
+          return { timestamp: formatDate(c.close_time * 1000), price: c.close, vol: c.volume, unix: c.close_time * 1000 };
         });
         sma_vec = [];
         console.log('data_raw>', data_raw);
@@ -200,17 +213,81 @@ async function onClickTrainModel(){
 
   // console.log('train X', inputs)
   // console.log('train Y', outputs)
-  result = await trainModel(inputs, outputs, window_size, n_epochs, learningrate, n_hiddenlayers, callback);
 
-  let logHtml = document.getElementById("div_traininglog").innerHTML;
-  logHtml = "<div>Model train completed</div>" + logHtml;
-  document.getElementById("div_traininglog").innerHTML = logHtml;
+//_________________________________________________
+
+  const data: Sma_Vec[] = sma_vec;
+
+  console.log('SMA VEC:', data)
+  const times: number[] = [];
+  const inputs_ = data.map(inp_f => {
+    times.push(inp_f.t);
+    return [
+      inp_f.set.map(v => v.price),
+      inp_f.set.map(v => v.price),
+      // inp_f.set.map(v => v.vol),
+    ]
+  });
+
+  const outputs_ = data.map(function (outp_f) { return outp_f['avg']; }).splice(-inputs_.length);
+  console.log('INP:', inputs_.length);
+  console.log('OUT', outputs_.length);
+
+  // const i_test = inputs_;
+  // const o_test = outputs_;
+
+  const i_test = inputs_.splice(-150);
+  const o_test = outputs_.splice(-150);
+  // const unvis_times = times.splice(-150);
+  console.log('>>', inputs_[10], inputs_[11], outputs_[10], outputs_[11]);
+  result = await trainModel(inputs_, outputs_, window_size, n_epochs, learningrate, n_hiddenlayers, callback);
+  // console.log('Res:', result);
+
+  let summPercent = 0;
+  // const r: number[] = [];
+  const known_y = makePredictions(inputs_.concat(i_test), result['model'], result['normalize']);
+  const known_time = times.slice();
+  // known_time.splice(-150);
+
+  // i_test.forEach((input, i) => {
+  known_y.concat(makePredictions(i_test, result['model'], result['normalize']));
+  // });
+  // console.log('Average', summPercent / i_test.length);
+  const interval = times[1] - times[0];
+  const p_times = times;
+  let i = 0;
+  // const inp = r.slice().splice(-30);
+  // while (i++ < 1) {
+  //   const p = known_y.slice().splice(-20);
+  //   const o = makePredictions([[p, p]], result['model'], result['normalize'])[0];
+  //   known_y.push(o);
+  //   known_time.push(known_time[known_time.length - 1] + interval);
+  // } 
+  console.log('R:', known_time.map(formatDate), known_y);
+
+  $("#div_container_validating").show();
+  $("#load_validating").show();
+  $("#btn_validation").hide();
+
+  let graph_plot = document.getElementById('div_validation_graph');
+  Plotly.newPlot( graph_plot, [{ x: times.map(formatDate), y: outputs_.concat(o_test), name: "Actual Price" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: known_time.map(formatDate), y: known_y, name: "Training Label (SMA)" }], { margin: { t: 0 } } );
+  // let val_train_y = 
+  // console.log({val_train_y, r: outputs[outputs.length - 1]});
+
+  return;
+//-------------------------------------------------
+  // result = await trainModel(inputs_, outputs_, window_size, n_epochs, learningrate, n_hiddenlayers, callback);
+
+  // let logHtml = document.getElementById("div_traininglog").innerHTML;
+  // logHtml = "<div>Model train completed</div>" + logHtml;
+  // document.getElementById("div_traininglog").innerHTML = logHtml;
 
   $("#div_container_validate").show();
   // $("#div_container_validatefirst").hide();
   $("#div_container_predict").show();
   // $("#div_container_predictfirst").hide();
-  onClickValidate();
+  // onClickValidate();
 }
 
 function onClickValidate() {
@@ -308,17 +385,19 @@ async function onClickPredict() {
   $("#load_predicting").hide();
 }
 
-function ComputeSMA(data: any, window_size: number)
+function ComputeSMA(data: el[], window_size: number)
 {
   let r_avgs = [], avg_prev = 0;
   for (let i = 0; i <= data.length - window_size; i++){
-    let curr_avg = 0.00, t = i + window_size;
-    for (let k = i; k < t && k <= data.length; k++){
-      curr_avg += data[k]['price'] / window_size;
-    }
-    r_avgs.push({ set: data.slice(i, i + window_size), avg: curr_avg });
-    avg_prev = curr_avg;
+    // let curr_avg = 0.00, t = i + window_size;
+    // for (let k = i; k < t && k <= data.length; k++){
+    //   curr_avg += data[k]['price'] / window_size;
+    // }
+    const set: el[] = data.slice(i, i + window_size);
+    data[i + window_size + 1] && r_avgs.push({ set, avg: data[i + window_size + 1].price, t: data[i + window_size + 1].unix} as Sma_Vec);
+    // avg_prev = curr_avg;
   }
+  console.log(r_avgs);
   return r_avgs;
 }
 
@@ -336,4 +415,4 @@ function formatDate(date: number) {
 }
 
 ////// 
-document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 10, 30));
+document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 50, 30));
