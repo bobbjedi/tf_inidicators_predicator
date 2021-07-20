@@ -165,10 +165,10 @@ export async function getClines(market: MarketName, pairName: string, count_clin
     let URL = getUrl(market, pairName, count_clines, interval);
     console.log(URL)
 
-    // const response = await fetch(URL.url);
-    // const json = await response.json();
+    const response = await fetch(URL.url);
+    const json = await response.json();
 
-    const json = map;
+    // const json = map;
 
     return convertClines(market, json, URL.convert, interval, count_clines) as {
         close: number;
@@ -244,6 +244,12 @@ function convertClines(market: MarketName, Clines: any, convert: boolean, interv
 }
 
 export default {
+    normalise(numb: number, min: number, max: number) {
+        let res = Number(((numb - min) / (max - min)).toFixed(5));
+        if(res>1) res=1;	
+        if(res<0) res=0;
+        return res;
+    },
     getClines,
     unix(): Number {
         return +(new Date().getTime());

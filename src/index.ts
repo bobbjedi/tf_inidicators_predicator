@@ -224,12 +224,12 @@ async function onClickTrainModel(){
     times.push(inp_f.t);
     return [
       inp_f.set.map(v => v.price),
-      inp_f.set.map(v => v.price),
-      // inp_f.set.map(v => v.vol),
+      // inp_f.set.map(v => v.price),
+      inp_f.set.map(v => v.vol),
     ]
   });
 
-  const outputs_ = data.map(function (outp_f) { return outp_f['avg']; }).splice(-inputs_.length);
+  const outputs_ = data.map(function (outp_f) { return outp_f['avg']; });
   console.log('INP:', inputs_.length);
   console.log('OUT', outputs_.length);
 
@@ -245,25 +245,42 @@ async function onClickTrainModel(){
 
   let summPercent = 0;
   // const r: number[] = [];
-  const known_y = makePredictions(inputs_.concat(i_test), result['model'], result['normalize']);
-  const known_time = times.slice();
-  // known_time.splice(-150);
+  const known_y = makePredictions(inputs_, result['model'], result['normalize']);
+  let known_time = times.slice();
+  known_time.splice(-150);
 
-  // i_test.forEach((input, i) => {
-  known_y.concat(makePredictions(i_test, result['model'], result['normalize']));
-  // });
-  // console.log('Average', summPercent / i_test.length);
+  const unknown_y = makePredictions(i_test, result['model'], result['normalize']);
+  let unknown_time = times.slice().splice(-150);
+
+
+
+  // console.log('Bef', known_y.length);
+  // i_test.forEach(i => known_y.push(makePredictions([i], result['model'], result['normalize'])[0]));
+  // console.log('AFT', known_y.length);
+
+  const countPred = 3;
   const interval = times[1] - times[0];
-  const p_times = times;
+  let pred_times = [times[times.length - 1]];
   let i = 0;
-  // const inp = r.slice().splice(-30);
-  // while (i++ < 1) {
-  //   const p = known_y.slice().splice(-20);
-  //   const o = makePredictions([[p, p]], result['model'], result['normalize'])[0];
-  //   known_y.push(o);
-  //   known_time.push(known_time[known_time.length - 1] + interval);
-  // } 
-  console.log('R:', known_time.map(formatDate), known_y);
+  // const prices = o_test.slice().splice(-25);
+  const prices = unknown_y.slice().splice(-20);
+  const pred_y: number[] = [prices[prices.length - 1]];
+
+  while (i++ < countPred) {
+    const p = prices.slice().splice(-window_size);
+    const o = makePredictions([[p, p]], result['model'], result['normalize'])[0];
+    console.log(p, o);
+    pred_y.push(o);
+    prices.push(o);
+    pred_times.push(pred_times[pred_times.length - 1] + interval);
+  }
+  // pred_times.shift();
+  console.log(pred_times, pred_y);
+  // console.log('R:', known_time.map(formatDate), known_y);
+
+  known_time = known_time.map(t => t - interval);
+  unknown_time = unknown_time.map(t => t - interval);
+  pred_times = pred_times.map(t => t - interval);
 
   $("#div_container_validating").show();
   $("#load_validating").show();
@@ -271,7 +288,9 @@ async function onClickTrainModel(){
 
   let graph_plot = document.getElementById('div_validation_graph');
   Plotly.newPlot( graph_plot, [{ x: times.map(formatDate), y: outputs_.concat(o_test), name: "Actual Price" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: known_time.map(formatDate), y: known_y, name: "Training Label (SMA)" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: known_time.map(formatDate), y: known_y, name: "Tr (Known)" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: unknown_time.map(formatDate), y: unknown_y, name: "Tr (Unknown)" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: pred_times.map(formatDate), y: pred_y, name: "Tr (Predict)" }], { margin: { t: 0 } } );
   // let val_train_y = 
   // console.log({val_train_y, r: outputs[outputs.length - 1]});
 
@@ -387,6 +406,17 @@ async function onClickPredict() {
 
 function ComputeSMA(data: el[], window_size: number)
 {
+  const maxPrice = Math.max(...data.map(e => e.price));
+  const minPrice = Math.min(...data.map(e => e.price));
+
+  const maxVol = Math.max(...data.map(e => e.vol));
+  const minVol = Math.min(...data.map(e => e.vol));
+  
+  console.log({maxPrice, minPrice, maxVol, minVol});
+  data.forEach(e => {
+    e.price = $u.normalise(e.price, minPrice, maxPrice);
+    e.vol = $u.normalise(e.vol, minVol, maxVol);
+  });
   let r_avgs = [], avg_prev = 0;
   for (let i = 0; i <= data.length - window_size; i++){
     // let curr_avg = 0.00, t = i + window_size;
@@ -394,7 +424,7 @@ function ComputeSMA(data: el[], window_size: number)
     //   curr_avg += data[k]['price'] / window_size;
     // }
     const set: el[] = data.slice(i, i + window_size);
-    data[i + window_size + 1] && r_avgs.push({ set, avg: data[i + window_size + 1].price, t: data[i + window_size + 1].unix} as Sma_Vec);
+    data[i + window_size] && r_avgs.push({ set, avg: data[i + window_size].price, t: data[i + window_size].unix} as Sma_Vec);
     // avg_prev = curr_avg;
   }
   console.log(r_avgs);
@@ -415,4 +445,4 @@ function formatDate(date: number) {
 }
 
 ////// 
-document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 50, 30));
+document.addEventListener('DOMContentLoaded', () => onClickFetchData('USDT-BTC', 50, 30));
