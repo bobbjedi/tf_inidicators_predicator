@@ -1,4 +1,6 @@
-async function trainModel(X, Y, window_size, n_epochs, learning_rate, n_layers, callback){
+import * as tf from '@tensorflow/tfjs';
+
+export async function trainModel(X: any[], Y: any[], window_size: number, n_epochs: number, learning_rate: number, n_layers: number, callback: (a: number, b: any) => void) {
 
   const batch_size = 32;
 
@@ -57,9 +59,7 @@ async function trainModel(X, Y, window_size, n_epochs, learning_rate, n_layers, 
 
   const hist = await model.fit(xs, ys,
     { batchSize: batch_size, epochs: n_epochs, callbacks: {
-      onEpochEnd: async (epoch, log) => {
-        callback(epoch, log);
-      }
+      onEpochEnd: callback
     }
   });
 
@@ -67,31 +67,33 @@ async function trainModel(X, Y, window_size, n_epochs, learning_rate, n_layers, 
   return { model: model, stats: hist, normalize: {inputMax:inputMax, inputMin:inputMin, labelMax:labelMax, labelMin:labelMin} };
 }
 
-function makePredictions(X, model, dict_normalize)
+export function makePredictions(X: any, model: tf.GraphModel, dict_normalize: any)
 {
     // const predictedResults = model.predict(tf.tensor2d(X, [X.length, X[0].length]).div(tf.scalar(10))).mul(10); // old method
     
     X = tf.tensor2d(X, [X.length, X[0].length]);
     const normalizedInput = normalizeTensor(X, dict_normalize["inputMax"], dict_normalize["inputMin"]);
-    const model_out = model.predict(normalizedInput);
+    const model_out: any = model.predict(normalizedInput);
     const predictedResults = unNormalizeTensor(model_out, dict_normalize["labelMax"], dict_normalize["labelMin"]);
 
     return Array.from(predictedResults.dataSync());
 }
 
-function normalizeTensorFit(tensor) {
+function normalizeTensorFit(tensor: tf.Tensor) {
   const maxval = tensor.max();
   const minval = tensor.min();
   const normalizedTensor = normalizeTensor(tensor, maxval, minval);
   return [normalizedTensor, maxval, minval];
 }
 
-function normalizeTensor(tensor, maxval, minval) {
+function normalizeTensor(tensor: tf.Tensor, maxval: tf.Tensor<tf.Rank>, minval: tf.Tensor<tf.Rank>) {
   const normalizedTensor = tensor.sub(minval).div(maxval.sub(minval));
   return normalizedTensor;
 }
 
-function unNormalizeTensor(tensor, maxval, minval) {
+function unNormalizeTensor(tensor: tf.Tensor, maxval: tf.Tensor<tf.Rank>, minval: tf.Tensor<tf.Rank>) {
   const unNormTensor = tensor.mul(maxval.sub(minval)).add(minval);
   return unNormTensor;
 }
+
+console.log('NUU<<<<')

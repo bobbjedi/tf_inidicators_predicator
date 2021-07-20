@@ -4,6 +4,7 @@
   "description": "Pull stock prices from online API and perform predictions using Recurrent Neural Network & Long Short Term Memory (LSTM) with TensorFlow.js framework",
   "main": "index.js",
   "scripts": {
+    "dev": "webpack --mode development --watch",
     "test": "echo \"Error: no test specified\" && exit 1",
     "push": "git push https://github.com/jinglescode/time-series-forecasting-tensorflowjs.git master"
   },
@@ -21,5 +22,14 @@
   "bugs": {
     "url": "https://github.com/jinglescode/time-series-forecasting-tensorflowjs/issues"
   },
-  "homepage": "https://jinglescode.github.io/time-series-forecasting-tensorflowjs"
+  "homepage": "https://jinglescode.github.io/time-series-forecasting-tensorflowjs",
+  "devDependencies": {
+    "@types/jquery": "^3.5.6",
+    "ts-loader": "^9.2.3",
+    "typescript": "^4.3.5",
+    "webpack-cli": "^4.7.2"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "^3.8.0"
+  }
 }

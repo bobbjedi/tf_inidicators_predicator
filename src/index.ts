@@ -1,29 +1,33 @@
-let input_dataset = [];
-let result = [];
-let data_raw = [];
-let sma_vec = [];
+import { getClines } from './utils';
+import { trainModel, makePredictions } from './model';
+let input_dataset: any = [];
+let result: any = [];
+let data_raw: any = [];
+let sma_vec: any = [];
 let window_size = 50;
 let trainingsize = 70;
-let data_temporal_resolutions = 'Weekly';
+const Plotly: any = (window as any).Plotly;
 
-$(document).ready(function(){
-  $('select').formSelect();
-});
+type Sma_vec = any;
+
+// $(document).ready(function(){
+//   $('select').formSelect();
+// });
 
 
-function onClickChangeDataFreq(freq){
-  console.log(freq.value);
-  data_temporal_resolutions = freq.value;
-  // $("#input_datafreq").text(freq);
-}
+// function onClickChangeDataFreq(freq){
+//   console.log(freq.value);
+//   data_temporal_resolutions = freq.value;
+//   // $("#input_datafreq").text(freq);
+// }
 
-async function onClickFetchData(symbol, epochs = 3, minutes = 720) {
-  document.getElementById("input_epochs").value = epochs;
+async function onClickFetchData(symbol: string, epochs = 3, minutes = 720) {
+  (document.getElementById("input_epochs") as any).value = epochs;
   // const clines = await getClines('binance','USDT-BTC', 999, 15); //  баржа, пара, период, TF в минутах
   // const symbol = 'USDT-BTC';
   console.log('Fetch', symbol);
   const clines = await getClines('binance', symbol, 999, minutes); //  баржа, пара, период, TF в минутах
-  let ticker = document.getElementById("input_ticker").value;
+  // let ticker = document.getElementById("input_ticker").value;
   $("#btn_fetch_data").hide();
   $("#load_fetch_data").show();
 
@@ -100,15 +104,15 @@ function onClickDisplaySMA(){
   $("#load_draw_sma").show();
   $("#div_container_sma").show();
 
-  window_size = parseInt(document.getElementById("input_windowsize").value);
+  window_size = parseInt((document.getElementById("input_windowsize") as any).value);
 
   sma_vec = ComputeSMA(data_raw, window_size);
 
-  let sma = sma_vec.map(function (val) { return val['avg']; });
-  let prices = data_raw.map(function (val) { return val['price']; });
+  let sma = sma_vec.map(function (val: any) { return val['avg']; });
+  let prices = data_raw.map(function (val: any) { return val['price']; });
 
-  let timestamps_a = data_raw.map(function (val) { return val['timestamp']; });
-  let timestamps_b = data_raw.map(function (val) {
+  let timestamps_a = data_raw.map(function (val: any) { return val['timestamp']; });
+  let timestamps_b = data_raw.map(function (val: any) {
     return val['timestamp'];
   }).splice(window_size, data_raw.length);
 
@@ -130,12 +134,12 @@ function onClickDisplaySMA(){
 function displayTrainingData(){
   // $("#div_container_trainingdata").show();
 
-  let set = sma_vec.map(function (val) { return val['set']; });
+  let set = sma_vec.map(function (val: any) { return val['set']; });
   let data_output = "";
   for (let index = 0; index < 25; index++)
   {
      data_output += "<tr><td width=\"20px\">" + (index + 1) +
-      "</td><td>[" + set[index].map(function (val) {
+      "</td><td>[" + set[index].map(function (val: any) {
         return (Math.round(val['price'] * 10000) / 10000).toString();
       }).toString() +
       "]</td><td>" + sma_vec[index]['avg'] + "</td></tr>";
@@ -158,26 +162,26 @@ function displayTrainingData(){
 
 async function onClickTrainModel(){
 
-  let epoch_loss = [];
+  let epoch_loss: string[] = [];
 
   $("#div_container_training").show();
   $("#btn_draw_trainmodel").hide();
 
   document.getElementById("div_traininglog").innerHTML = "";
 
-  let inputs = sma_vec.map(function(inp_f){
-    return inp_f['set'].map(function(val) { return val['price']; })
+  let inputs = sma_vec.map(function(inp_f: any){
+    return inp_f['set'].map(function(val: any) { return val['price']; })
   });
-  let outputs = sma_vec.map(function(outp_f) { return outp_f['avg']; });
+  let outputs = sma_vec.map(function(outp_f: any) { return outp_f['avg']; });
 
-  trainingsize = parseInt(document.getElementById("input_trainingsize").value);
-  let n_epochs = parseInt(document.getElementById("input_epochs").value);
-  let learningrate = parseFloat(document.getElementById("input_learningrate").value);
-  let n_hiddenlayers = parseInt(document.getElementById("input_hiddenlayers").value);
+  trainingsize = parseInt((document.getElementById("input_trainingsize") as any).value);
+  let n_epochs = parseInt((document.getElementById("input_epochs") as any).value);
+  let learningrate = parseFloat((document.getElementById("input_learningrate") as any).value);
+  let n_hiddenlayers = parseInt((document.getElementById("input_hiddenlayers") as any).value);
 
   inputs = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
   outputs = outputs.slice(0, Math.floor(trainingsize / 100 * outputs.length));
-  let callback = function(epoch, log) {
+  let callback = function(epoch: number, log: any) {
     let logHtml = document.getElementById("div_traininglog").innerHTML;
     logHtml = "<div>Epoch: " + (epoch + 1) + " (of "+ n_epochs +")" +
       ", loss: " + log.loss +
@@ -215,8 +219,8 @@ function onClickValidate() {
   $("#load_validating").show();
   $("#btn_validation").hide();
 
-  let inputs = sma_vec.map(function(inp_f) {
-   return inp_f['set'].map(function (val) { return val['price']; });
+  let inputs = sma_vec.map(function(inp_f: any) {
+   return inp_f['set'].map(function (val: any) { return val['price']; });
   });
 
   // validate on training
@@ -233,23 +237,23 @@ function onClickValidate() {
   let val_unseen_y = makePredictions(val_unseen_x, result['model'], result['normalize']);
   // console.log('val_unseen_y', val_unseen_y)
 
-  let timestamps_a = data_raw.map(function (val) { return val['timestamp']; });
-  let timestamps_b = data_raw.map(function (val) {
+  let timestamps_a = data_raw.map(function (val: any) { return val['timestamp']; });
+  let timestamps_b = data_raw.map(function (val: any) {
     return val['timestamp'];
   }).splice(window_size, (data_raw.length - Math.floor((100-trainingsize) / 100 * data_raw.length))); //.splice(window_size, data_raw.length);
   // let timestamps_c = data_raw.map(function (val) {
   //   return val['timestamp'];
   // }).splice(window_size + Math.floor(trainingsize / 100 * val_unseen_x.length), data_raw.length);
-  let timestamps_sma = data_raw.map(function (val) {
+  let timestamps_sma = data_raw.map(function (val: any) {
     return val['timestamp'];
   }).splice(window_size, data_raw.length);
 
-  let timestamps_c = data_raw.map(function (val) {
+  let timestamps_c = data_raw.map(function (val: any) {
     return val['timestamp'];
   }).splice(window_size + Math.floor(trainingsize / 100 * inputs.length), inputs.length);
 
-  let sma = sma_vec.map(function (val) { return val['avg']; });
-  let prices = data_raw.map(function (val) { return val['price']; });
+  let sma = sma_vec.map(function (val: any) { return val['avg']; });
+  let prices = data_raw.map(function (val: any) { return val['price']; });
   // sma = sma.slice(0, Math.floor(trainingsize / 100 * sma.length));
   sma = sma.slice();
 
@@ -269,16 +273,16 @@ async function onClickPredict() {
   $("#load_predicting").show();
   $("#btn_prediction").hide();
 
-  let inputs = sma_vec.map(function(inp_f) {
-   return inp_f['set'].map(function (val) { return val['price']; });
+  let inputs = sma_vec.map(function(inp_f: any) {
+   return inp_f['set'].map(function (val: any) { return val['price']; });
   });
   let pred_X = [inputs[inputs.length-1]];
   pred_X = pred_X.slice(Math.floor(trainingsize / 100 * pred_X.length), pred_X.length);
   let pred_y = makePredictions(pred_X, result['model'], result['normalize']);
 
-  window_size = parseInt(document.getElementById("input_windowsize").value);
+  window_size = parseInt((document.getElementById("input_windowsize") as any).value);
 
-  let timestamps_d = data_raw.map(function (val) {
+  let timestamps_d = data_raw.map(function (val: any) {
     return val['unix'];
   }).splice((data_raw.length - window_size), data_raw.length);
   console.log({timestamps_d});
@@ -304,7 +308,7 @@ async function onClickPredict() {
   $("#load_predicting").hide();
 }
 
-function ComputeSMA(data, window_size)
+function ComputeSMA(data: any, window_size: number)
 {
   let r_avgs = [], avg_prev = 0;
   for (let i = 0; i <= data.length - window_size; i++){
@@ -318,7 +322,7 @@ function ComputeSMA(data, window_size)
   return r_avgs;
 }
 
-function formatDate(date) {
+function formatDate(date: number) {
   return new Date(date).toLocaleString()
   // var d = new Date(date),
   //     month = '' + (d.getMonth() + 1),
@@ -332,4 +336,4 @@ function formatDate(date) {
 }
 
 ////// 
-document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 3, 15));
+document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 10, 30));

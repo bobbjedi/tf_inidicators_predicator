@@ -1,13 +1,14 @@
+type MarketName  = 'binance' | 'bittrex' | 'poloniex';
 
-function getUrl(market, pairName, count_clines, interval) {
-
-    if (market == 'binance') {
+export const getUrl = (market: MarketName, pairName: string, count_clines: number, interval: number) => {
+    let symbol: string;
+    if (market === 'binance') {
         symbol = pairBittrexToBinance(pairName);
     }
-    if (market == 'bittrex') {
+    if (market === 'bittrex') {
         symbol = pairName;
     }
-    if (market == 'poloniex') {
+    if (market === 'poloniex') {
         symbol = pairName.replace('-', '_');
     }
 
@@ -34,7 +35,7 @@ function getUrl(market, pairName, count_clines, interval) {
 
         case ('poloniex'):
 
-            let start = (new Date().getTime() / 1000).toFixed(0) - count_clines * interval - 20 * 3600;
+            let start = +(new Date().getTime() / 1000).toFixed(0) - count_clines * interval - 20 * 3600;
 
             url = 'https://poloniex.com/public?command=returnChartData&currencyPair=' + symbol + '&start=' + start + '&end=9999999999&period=' + Interval;
 
@@ -49,7 +50,7 @@ function getUrl(market, pairName, count_clines, interval) {
 
 
 
-function pairBittrexToBinance(pair) {
+function pairBittrexToBinance(pair: string) {
     if (~pair.indexOf('USDT'))
         return pair.replace('USDT-', '') + 'USDT';
     if (~pair.indexOf('BTC'))
@@ -60,7 +61,7 @@ function pairBittrexToBinance(pair) {
         return pair.replace('BNB-', '') + 'BNB';
 }
 
-function fiveTo15(array) {
+function fiveTo15(array: any[]) {
     let newarr = [];
     while (array.length > 3) {
         let tree = array.splice(-3);
@@ -86,7 +87,7 @@ function fiveTo15(array) {
     return newarr;
 }
 
-function getInterval(market, tf) {
+function getInterval(market: MarketName, tf: number) {
     switch (market) {
 
         case ('bittrex'):
@@ -159,7 +160,7 @@ function getInterval(market, tf) {
 }
 
 
-async function getClines(market, pairName, count_clines, interval) {// ('binance','BTC-USDT', 14, 15) баржа, пара, период, TF в минутах
+export async function getClines(market: MarketName, pairName: string, count_clines: number, interval: number) {// ('binance','BTC-USDT', 14, 15) баржа, пара, период, TF в минутах
 
     let URL = getUrl(market, pairName, count_clines, interval);
     console.log(URL)
@@ -169,8 +170,8 @@ async function getClines(market, pairName, count_clines, interval) {// ('binance
     return convertClines(market, json, URL.convert, interval, count_clines);
 }
 
-function convertClines(market, Clines, convert, interval, count_clines) {
-    var convertedClines = [];
+function convertClines(market: MarketName, Clines: any, convert: boolean, interval: number, count_clines: number) {
+    var convertedClines: any[] = [];
     if (market == 'bittrex') {
         if (!Clines.success) {
             console.log(Clines);
@@ -181,7 +182,7 @@ function convertClines(market, Clines, convert, interval, count_clines) {
         if (convert) { // делаем 15ти минутки
             Clines = fiveTo15(Clines);
         }
-        Clines.forEach((cl, i) => {
+        Clines.forEach((cl: any, i: number) => {
             var open_time = + (Date.parse(cl.T) / 1000).toFixed(0);
             convertedClines.push({
                 open_time: +open_time,
@@ -198,7 +199,7 @@ function convertClines(market, Clines, convert, interval, count_clines) {
     }
 
     if (market == 'binance') {
-        Clines.splice(-count_clines).forEach((cl, i) => {
+        Clines.splice(-count_clines).forEach((cl: any, i: number) => {
             convertedClines.push({
                 open_time: +(cl[0] / 1000).toFixed(0),
                 close_time: +(cl[6] / 1000).toFixed(0),
@@ -214,7 +215,7 @@ function convertClines(market, Clines, convert, interval, count_clines) {
 
     if (market == 'poloniex') {
 
-        Clines.splice(-count_clines).forEach((cl, i) => {
+        Clines.splice(-count_clines).forEach((cl: any, i: number) => {
             convertedClines.push({
                 open_time: +cl.date,
                 close_time: +cl.date + Number(interval),
