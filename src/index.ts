@@ -198,8 +198,11 @@ async function onClickTrainModel(){
     Plotly.newPlot( graph_plot, [{x: Array.from({length: epoch_loss.length}, (v, k) => k+1), y: epoch_loss, name: "Loss" }], { margin: { t: 0 } } );
   };
 
-  // console.log('train X', inputs)
-  // console.log('train Y', outputs)
+  console.log('train X', inputs.length);
+  console.log('train Y', outputs.length);
+
+  // inputs.splice(-5);
+  // outputs = outputs.splice(-inputs.length);
   result = await trainModel(inputs, outputs, window_size, n_epochs, learningrate, n_hiddenlayers, callback);
 
   let logHtml = document.getElementById("div_traininglog").innerHTML;
@@ -316,7 +319,8 @@ function ComputeSMA(data: any, window_size: number)
     for (let k = i; k < t && k <= data.length; k++){
       curr_avg += data[k]['price'] / window_size;
     }
-    r_avgs.push({ set: data.slice(i, i + window_size), avg: curr_avg });
+    // r_avgs.push({ set: data.slice(i, i + window_size), avg: curr_avg });
+    data[i + window_size + 1] && r_avgs.push({ set: data.slice(i, i + window_size), avg: data[i + window_size + 1].price });
     avg_prev = curr_avg;
   }
   return r_avgs;
@@ -336,4 +340,4 @@ function formatDate(date: number) {
 }
 
 ////// 
-document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 10, 30));
+document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 15, 60));
