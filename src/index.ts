@@ -1,5 +1,7 @@
 import { getClines } from './utils';
 import { trainModel, makePredictions } from './model';
+// import * as brain from './brainjsModel';
+// console.log({brain});
 let input_dataset: any = [];
 let result: any = [];
 let data_raw: any = [];
@@ -7,9 +9,28 @@ let sma_vec: any = [];
 let window_size = 50;
 let trainingsize = 70;
 const Plotly: any = (window as any).Plotly;
+const brain: any = (window as any).brain;
 
 type Sma_vec = any;
 
+const net = new brain.recurrent.LSTMTimeStep({
+  inputSize: 2,
+  hiddenLayers: [10],
+  outputSize: 2,
+});
+
+net.train([
+  [1, 3],
+  [2, 2],
+  [3, 1],
+]);
+
+const output = net.run([
+  [1, 3],
+  [2, 2],
+]); // [3, 1]
+
+console.log('OUT', output);
 // $(document).ready(function(){
 //   $('select').formSelect();
 // });
@@ -203,7 +224,34 @@ async function onClickTrainModel(){
 
   // inputs.splice(-5);
   // outputs = outputs.splice(-inputs.length);
-  result = await trainModel(inputs, outputs, window_size, n_epochs, learningrate, n_hiddenlayers, callback);
+  const brainInput = sma_vec.map(function (inp_f: any) {
+    return inp_f['set'].map(function(val: any) { return val['price']; })
+  });
+  const net = new brain.recurrent.LSTMTimeStep({
+    inputSize: window_size,
+    hiddenLayers: [10],
+    outputSize: 1,
+  });
+
+  net.train(
+    brainInput,
+    {
+      log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
+      logPeriod: 10, // iterations between logging out --> number greater than 0
+      learningRate: 0.3, // scales with delta to effect training rate --> number between 0 and 1
+      momentum: 0.1, // scales with next layer's change value --> number between 0 and 1
+      callback(a, b, c) {
+        console.log('BRAIN log:', { a, b, c });
+      }, // a periodic call back that can be triggered while training --> null or function
+      callbackPeriod: 10, // the number of iterations through the training data between callback calls --> number greater than 0
+    });
+
+  // const output = net.run([
+  //   [1, 3],
+  //   [2, 2],
+  // ]); // [3, 1]
+
+  // result = await trainModel(inputs, outputs, window_size, n_epochs, learningrate, n_hiddenlayers, callback);
 
   let logHtml = document.getElementById("div_traininglog").innerHTML;
   logHtml = "<div>Model train completed</div>" + logHtml;
@@ -311,16 +359,16 @@ async function onClickPredict() {
   $("#load_predicting").hide();
 }
 
-function ComputeSMA(data: any, window_size: number)
-{
+function ComputeSMA(data: any, window_size: number) {
+  const offset = 12;
   let r_avgs = [], avg_prev = 0;
-  for (let i = 0; i <= data.length - window_size; i++){
+  for (let i = offset; i <= data.length - window_size; i++){
     let curr_avg = 0.00, t = i + window_size;
     for (let k = i; k < t && k <= data.length; k++){
       curr_avg += data[k]['price'] / window_size;
     }
-    // r_avgs.push({ set: data.slice(i, i + window_size), avg: curr_avg });
-    data[i + window_size + 1] && r_avgs.push({ set: data.slice(i, i + window_size), avg: data[i + window_size + 1].price });
+    r_avgs.push({ set: data.slice(i - offset, i + window_size - offset), avg: curr_avg });
+    // data[i + window_size + 1] && r_avgs.push({ set: data.slice(i, i + window_size), avg: data[i + window_size + 1].price });
     avg_prev = curr_avg;
   }
   return r_avgs;
@@ -340,4 +388,4 @@ function formatDate(date: number) {
 }
 
 ////// 
-document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 15, 60));
+document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 5, 60));
