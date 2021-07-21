@@ -169,18 +169,18 @@ async function onClickTrainModel(){
 
   document.getElementById("div_traininglog").innerHTML = "";
 
-  let inputs = sma_vec.map(function(inp_f: any){
-    return inp_f['set'].map(function(val: any) { return val['price']; })
-  });
-  let outputs = sma_vec.map(function(outp_f: any) { return outp_f['avg']; });
+  // let inputs = sma_vec.map(function(inp_f: any){
+  //   return inp_f['set'].map(function(val: any) { return val['price']; })
+  // });
+  // let outputs = sma_vec.map(function(outp_f: any) { return outp_f['avg']; });
 
   trainingsize = parseInt((document.getElementById("input_trainingsize") as any).value);
   let n_epochs = parseInt((document.getElementById("input_epochs") as any).value);
   let learningrate = parseFloat((document.getElementById("input_learningrate") as any).value);
   let n_hiddenlayers = parseInt((document.getElementById("input_hiddenlayers") as any).value);
 
-  inputs = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
-  outputs = outputs.slice(0, Math.floor(trainingsize / 100 * outputs.length));
+  // inputs = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
+  // outputs = outputs.slice(0, Math.floor(trainingsize / 100 * outputs.length));
   let callback = function(epoch: number, log: any) {
     let logHtml = document.getElementById("div_traininglog").innerHTML;
     logHtml = "<div>Epoch: " + (epoch + 1) + " (of "+ n_epochs +")" +
@@ -200,6 +200,24 @@ async function onClickTrainModel(){
 
   // console.log('train X', inputs)
   // console.log('train Y', outputs)
+
+  
+  let { inputs, outputs } = getAllData();
+  
+  console.log('out last:', outputs[outputs.length - 1]);
+  console.log('input last:', inputs[inputs.length - 1]);
+  
+  inputs.splice(-2);
+  outputs = outputs.splice(-inputs.length);
+
+  console.log('ii', inputs.length);
+  console.log('oo', outputs.length);
+
+  console.log('out last:', outputs[outputs.length - 1]);
+  console.log('input last:', inputs[inputs.length - 1]);
+
+  outputs.splice(-50);
+  inputs.splice(-50);
   result = await trainModel(inputs, outputs, window_size, n_epochs, learningrate, n_hiddenlayers, callback);
 
   let logHtml = document.getElementById("div_traininglog").innerHTML;
@@ -218,51 +236,20 @@ function onClickValidate() {
   $("#div_container_validating").show();
   $("#load_validating").show();
   $("#btn_validation").hide();
-
-  let inputs = sma_vec.map(function(inp_f: any) {
-   return inp_f['set'].map(function (val: any) { return val['price']; });
-  });
-
-  // validate on training
-  let val_train_x = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
-  // let outputs = sma_vec.map(function(outp_f) { return outp_f['avg']; });
-  // let outps = outputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
-  // console.log('val_train_x', val_train_x)
-  let val_train_y = makePredictions(val_train_x, result['model'], result['normalize']);
-  // console.log('val_train_y', val_train_y)
-
-  // validate on unseen
-  let val_unseen_x = inputs.slice(Math.floor(trainingsize / 100 * inputs.length), inputs.length);
-  // console.log('val_unseen_x', val_unseen_x)
-  let val_unseen_y = makePredictions(val_unseen_x, result['model'], result['normalize']);
-  // console.log('val_unseen_y', val_unseen_y)
-
-  let timestamps_a = data_raw.map(function (val: any) { return val['timestamp']; });
-  let timestamps_b = data_raw.map(function (val: any) {
-    return val['timestamp'];
-  }).splice(window_size, (data_raw.length - Math.floor((100-trainingsize) / 100 * data_raw.length))); //.splice(window_size, data_raw.length);
-  // let timestamps_c = data_raw.map(function (val) {
-  //   return val['timestamp'];
-  // }).splice(window_size + Math.floor(trainingsize / 100 * val_unseen_x.length), data_raw.length);
-  let timestamps_sma = data_raw.map(function (val: any) {
-    return val['timestamp'];
-  }).splice(window_size, data_raw.length);
-
-  let timestamps_c = data_raw.map(function (val: any) {
-    return val['timestamp'];
-  }).splice(window_size + Math.floor(trainingsize / 100 * inputs.length), inputs.length);
-
-  let sma = sma_vec.map(function (val: any) { return val['avg']; });
-  let prices = data_raw.map(function (val: any) { return val['price']; });
-  // sma = sma.slice(0, Math.floor(trainingsize / 100 * sma.length));
-  sma = sma.slice();
-
+  const { inputs, outputs, prices, timestamps_common } = getAllData();
+  console.log('inputs>', inputs[0]);
+  console.log('prices>', prices[0]);
+  const val_train_y = makePredictions(inputs, result['model'], result['normalize']);
+  console.log('Last y:', val_train_y[val_train_y.length -1]);
+  console.log('Last pred:', makePredictions([inputs[inputs.length - 1]], result['model'], result['normalize']));
   let graph_plot = document.getElementById('div_validation_graph');
-  Plotly.newPlot( graph_plot, [{ x: timestamps_a, y: prices, name: "Actual Price" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timestamps_sma, y: sma, name: "Training Label (SMA)" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timestamps_b, y: val_train_y, name: "Predicted (train)" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timestamps_c, y: val_unseen_y, name: "Predicted (test)" }], { margin: { t: 0 } } );
-
+  Plotly.newPlot( graph_plot, [{ x: timestamps_common, y: prices, name: "Actual Price" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: timestamps_common, y: outputs, name: "(Real Sma)" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: timestamps_common, y: val_train_y, name: "Training Label (SMA)" }], { margin: { t: 0 } } );
+  // Plotly.plot( graph_plot, [{ x: timestamps_b, y: val_train_y, name: "Predicted (train)" }], { margin: { t: 0 } } );
+  // Plotly.plot( graph_plot, [{ x: timestamps_c, y: val_unseen_y, name: "Predicted (test)" }], { margin: { t: 0 } } );
+  // Plotly.plot( graph_plot, [{ x: pred_times, y: pred_y, name: "Predicted (test)" }], { margin: { t: 0 } } );
+  return;
   $("#load_validating").hide();
   onClickPredict();
 }
@@ -311,12 +298,16 @@ async function onClickPredict() {
 function ComputeSMA(data: any, window_size: number)
 {
   let r_avgs = [], avg_prev = 0;
-  for (let i = 0; i <= data.length - window_size; i++){
+  for (let i = 1; i <= data.length - window_size; i++) {
     let curr_avg = 0.00, t = i + window_size;
     for (let k = i; k < t && k <= data.length; k++){
       curr_avg += data[k]['price'] / window_size;
     }
-    r_avgs.push({ set: data.slice(i, i + window_size), avg: curr_avg });
+    // const set = data.slice(i - 1, i + window_size);
+    // const avg = set.splice(-1)[0].price;
+    const set = data.slice(i, i + window_size);
+    const avg = curr_avg; 
+    r_avgs.push({ set, avg });
     avg_prev = curr_avg;
   }
   return r_avgs;
@@ -336,4 +327,48 @@ function formatDate(date: number) {
 }
 
 ////// 
-document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 10, 30));
+
+const createPrices = (set: number[][]) => {
+  let inputs_ = set;
+  let outputs: number[] = inputs_.map(e => e[e.length - 1]);
+  // inputs_.splice(-1);
+  // outputs = outputs.splice(-inputs_.length);
+  return { inputs_, outputs };
+}
+const createSma = (set: number[][]) => {
+  return set.map(r => {
+    return r.reduce((s, v) => {
+      return s + v / window_size;
+    }, 0);
+  });
+}
+
+
+
+const getAllData = () => {
+  let prices: number[] = data_raw.map(function (val: any) { return val['price']; });
+  let inputs: number[][] = [];
+  let i = 0;
+  while (i <= prices.length - window_size) {
+    inputs.push(prices.slice(i, window_size + i));
+    i++;
+  }
+  // let outputs = createSma(inputs);
+  const { outputs, inputs_} = createPrices(inputs);
+  inputs = inputs_;
+  console.log('III', inputs);
+  console.log('OOOO', outputs);
+  let timestamps_common = data_raw.map(function (val: any) {
+    return val['timestamp'];
+  }).splice(-outputs.length);
+  prices = prices.splice(-inputs.length);
+  
+  console.log('inputs.l', inputs.length);
+  console.log('outps.l', outputs.length);
+  console.log('prices.l', prices.length);
+  console.log('timestamps_common.l', timestamps_common.length);
+
+  return { inputs, prices, outputs, timestamps_common };
+}
+
+document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 15, 60));
