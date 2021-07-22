@@ -30,6 +30,8 @@
     "webpack-cli": "^4.7.2"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "^3.8.0"
+    "@tensorflow/tfjs": "^3.8.0",
+    "@types/underscore": "^1.11.3",
+    "underscore": "^1.13.1"
   }
 }

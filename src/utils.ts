@@ -174,10 +174,10 @@ export async function getClines(market: MarketName, pairName: string, count_clin
     let URL = getUrl(market, pairName, count_clines, interval);
     console.log(URL)
 
-    const response = await fetch(URL.url);
-    const json = await response.json();
+    // const response = await fetch(URL.url);
+    // const json = await response.json();
 
-    // const json = map;
+    const json = map;
 
     return convertClines(market, json, URL.convert, interval, count_clines) as Cline[];
 }

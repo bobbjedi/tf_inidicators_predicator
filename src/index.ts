@@ -1,20 +1,23 @@
 import $u from './utils';
 import { Cline } from './utils';
 import { trainModel, makePredictions } from './model';
+import * as _ from 'underscore';
 
 // import * as brain from './brainjsModel';
 // console.log({brain});
 
-let result: any = [];
-let data_raw: ClData[] = [];
-let sma_vec: SmaData[] = [];
-let clines: Cline[] = [];
-let indicData: {
+type IndicData = {
   times: number[];
   indic: number[];
   prices: number[];
   volumes: number[];
 };
+
+let result: any = [];
+let data_raw: ClData[] = [];
+let sma_vec: SmaData[] = [];
+let clines: Cline[] = [];
+let indicData: IndicData;
 let window_size = 50;
 let trainingsize = 70;
 const Plotly: any = (window as any).Plotly;
@@ -25,9 +28,9 @@ async function onClickFetchData(symbol: string, epochs = 3, minutes = 720) {
   (document.getElementById("input_epochs") as any).value = epochs;
   console.log('Fetch', symbol);
   clines = await $u.getClines('binance', symbol, 999, minutes); //  баржа, пара, период, TF в минутах
-  indicData = getSMA(clines, window_size);
+  // indicData = getSMA(clines, window_size);
   // indicData = getPVT(clines);
-  // indicData = getPrices(clines);
+  indicData = getPrices(clines);
 
   // let ticker = document.getElementById("input_ticker").value;
   $("#btn_fetch_data").hide();
@@ -47,7 +50,6 @@ async function onClickFetchData(symbol: string, epochs = 3, minutes = 720) {
   $("#div_container_getsma").show();
   $("#div_container_getsmafirst").hide();
   onClickDisplaySMA();
-
 }
 
 function onClickDisplaySMA(){
@@ -78,7 +80,7 @@ function onClickDisplaySMA(){
 
 
 async function onClickTrainModel(){
-
+  // window_size = 14;
   let epoch_loss: string[] = [];
 
   $("#div_container_training").show();
@@ -86,27 +88,19 @@ async function onClickTrainModel(){
 
   document.getElementById("div_traininglog").innerHTML = "";
   console.log('indicData', indicData);
-  let inputs = separateArr(indicData.indic, window_size);
-  let outputs = indicData.prices.slice().splice(-inputs.length);
-  // let inputs = separateArr(indicData.prices, window_size);
-  // let outputs = indicData.indic.slice().splice(-inputs.length);
-
+  const set = prepSet(indicData, window_size);
+  console.log('Set:', set.length);
+  
   trainingsize = parseInt((document.getElementById("input_trainingsize") as any).value);
   let n_epochs = parseInt((document.getElementById("input_epochs") as any).value);
-  let learningrate = parseFloat((document.getElementById("input_learningrate") as any).value);
-  let n_hiddenlayers = parseInt((document.getElementById("input_hiddenlayers") as any).value);
 
-  inputs = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
-  outputs = outputs.slice(0, Math.floor(trainingsize / 100 * outputs.length));
   let callbackChar = function(epoch: number, log: any) {
     let logHtml = document.getElementById("div_traininglog").innerHTML;
     logHtml = "<div>Epoch: " + (epoch + 1) + " (of "+ n_epochs +")" +
       ", loss: " + log.loss +
-      // ", difference: " + (epoch_loss[epoch_loss.length-1] - log.loss) +
       "</div>" + logHtml;
 
     epoch_loss.push(log.loss);
-
     document.getElementById("div_traininglog").innerHTML = logHtml;
     document.getElementById("div_training_progressbar").style.width = Math.ceil(((epoch + 1) * (100 / n_epochs))).toString() + "%";
     document.getElementById("div_training_progressbar").innerHTML = Math.ceil(((epoch + 1) * (100 / n_epochs))).toString() + "%";
@@ -115,23 +109,6 @@ async function onClickTrainModel(){
     Plotly.newPlot( graph_plot, [{x: Array.from({length: epoch_loss.length}, (v, k) => k+1), y: epoch_loss, name: "Loss" }], { margin: { t: 0 } } );
   };
 
-  console.log('train X', inputs);
-  console.log('train Y', outputs);
-  // console.log('indicData.prices', indicData.prices.length);
-
-  // const offset = 5;
-  // inputs.splice(-offset);
-  // outputs = outputs.splice(-inputs.length);
-
-  
-  // const brainTrainInput = inputs.map((input, i) => {
-  //   return { input, output: [outputs[i], outputs[i + 3], outputs[i + 5], outputs[i + 7], outputs[i + 9], outputs[i + 11]] }
-  // }).filter(s => s.output[5]);
-  const brainTrainInput = inputs.map((input, i) => {
-    return { input, output: [outputs[i]] }
-  })
-  // return 
-  console.log('brainInput', brainTrainInput);
   const net = new brain.NeuralNetwork({
     // inputSize: [window_size, window_size],
     // inputRange: 20,
@@ -140,21 +117,21 @@ async function onClickTrainModel(){
     // learningRate: 0.01,
     // decayRate: 0.999,
     hiddenLayers: [4], // array of ints for the sizes of the hidden layers in the network
-    activation: 'sigmoid', // supported activation types: ['sigmoid', 'relu', 'leaky-relu', 'tanh'],
-    leakyReluAlpha: 0.01, // supported for activation type 'leaky-relu' 
+    // activation: 'leaky-relu', // supported activation types: ['sigmoid', 'relu', 'leaky-relu', 'tanh'],
+    // leakyReluAlpha: 0.01, // supported for activation type 'leaky-relu' 
   });
 
   const callback_ = async (log: { iterations: number, error: number}) => {
     callbackChar(log.iterations, { loss: log.error});
   };
   net.train(
-    brainTrainInput,
+    set,
     {
       log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
       logPeriod: 100, // iterations between logging out --> number greater than 0
       learningRate: 0.03, // scales with delta to effect training rate --> number between 0 and 1
-      momentum: 0.05, // scales with next layer's change value --> number between 0 and 1
-      iterations: 11000,
+      momentum: 0.01, // scales with next layer's change value --> number between 0 and 1
+      iterations: 20000,
       binaryThresh: 0.035,
       // binaryThresh: 0.000001,
       callback: callback_, // a periodic call back that can be triggered while training --> null or function
@@ -184,49 +161,25 @@ function onClickValidate(brainNet: any) {
   const times = indicData.times.slice().map(t => formatDate(t * 1000));
   const times_prices = times.slice().splice(-prices.length);
   console.log('time', times);
-  // validate on training
-  let val_train_x = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
-
-  const brainSeenInput = val_train_x;
-  const outSeen = brainSeenInput.map(i => {
-    const res = brainNet.run(i);
-    return res[res.length - 1];
-  });
   
-  const brainUnseenInput = inputs.slice(Math.floor(trainingsize / 100 * inputs.length), inputs.length);
-  const outUnSeen = brainUnseenInput.map(i => {
-    const res = brainNet.run(i);
-    return res[res.length - 1];
-  });
- 
-  const outUnSeen1 = brainUnseenInput.map(i => {
-    const res = brainNet.run(i);
-    return res[0];
-  });
+  const brainInput = separateArr(indicData.indic, window_size);
+  const out = normalizeArr(brainInput.map(i => brainNet.run(i)[0])).map(e => e / 3);
+  const outUnSeen = normalizeArr(brainInput.map(i => brainNet.run(i)[0])).splice(-unSeenCount).map(e => e / 3);
   
-  outUnSeen.unshift(outSeen[outSeen.length - 1]);
-  outUnSeen1.unshift(outSeen[outSeen.length - 1]);
-  
-  const timesUnSeen = times.splice(-outUnSeen.length);
-  const timesSeen = times.slice(window_size + 1, 100000);
+  const times_brain = times.slice().splice(-out.length);
+  const timesUnseen = times_brain.splice(-unSeenCount);
 
-  console.log('brainSeenInput', brainSeenInput.length);
-  console.log('brainUnseenInput', brainUnseenInput.length);
-
-  const brainInput = inputs.map((input, i) => {
-    return input 
-  });
-  const out = brainInput.map(i => brainNet.run(i)[0]);
-  console.log('Out len', out.length);
+  console.log('Out len', out);
   console.log('Times len', times.length);
-  // const times = timestamps_a.slice().splice(-out.length);
+
+  
   // return;
   let graph_plot = document.getElementById('div_validation_graph');
-  Plotly.newPlot( graph_plot, [{ x: times_prices, y: prices, name: "Actual Price" }], { margin: { t: 0 } } );
-  // Plotly.plot( graph_plot, [{ x: timestamps_sma, y: sma, name: "Training Label (SMA)" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timesSeen, y: outSeen, name: "Predicted (train)" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timesUnSeen, y: outUnSeen, name: "Predicted (test)" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timesUnSeen, y: outUnSeen1, name: "Predicted (test)" }], { margin: { t: 0 } } );
+  Plotly.newPlot(graph_plot, [{ x: times_prices, y: prices.map(e => e + .4), name: "Actual Price" }], { margin: { t: 0 } });
+  Plotly.plot(graph_plot, [{ x: times_brain, y: out, name: "Training Label (SMA)"}], { margin: { t: 0 } });
+  Plotly.plot( graph_plot, [{ x: timesUnseen, y: outUnSeen, name: "Predicted (train)" }], { margin: { t: 0 } } );
+  // Plotly.plot( graph_plot, [{ x: timesUnSeen, y: outUnSeen, name: "Predicted (test)" }], { margin: { t: 0 } } );
+  // Plotly.plot( graph_plot, [{ x: timesUnSeen, y: outUnSeen1, name: "Predicted (test)" }], { margin: { t: 0 } } );
 
   $("#load_validating").hide();
   // onClickPredict();
@@ -312,8 +265,8 @@ const calcPVT = (clines: Cline[]) => {
   const times: number[] = [];
   const volumes: number[] = [];
   for (let i = 1; i < clines_.length; i++) {
-    // PVT.push(((clines_[i].close - clines_[i - 1].close) / clines_[i - 1].close) * clines_[i].volume + (PVT[i - 1] || 0));
-    PVT.push(((clines_[i].close - clines_[i - 1].close) / clines_[i - 1].close) * clines_[i].volume);
+    PVT.push(((clines_[i].close - clines_[i - 1].close) / clines_[i - 1].close) * clines_[i].volume + (PVT[i - 1] || 0));
+    // PVT.push(((clines_[i].close - clines_[i - 1].close) / clines_[i - 1].close) * clines_[i].volume);
     prices.push(clines[i].close);
     times.push(clines[i].close_time);
     volumes.push(clines[i].volume);
@@ -342,6 +295,7 @@ const calcSMA = (clines: Cline[], window_size: number) => {
 const normalizeArr = (data: number[]) => {
   const max = Math.max(...data);
   const min = Math.min(...data);
+  console.log({max, min});
   return data.map(e => $u.normalise(e, min, max));
 };
 const normmaliseClData = (data: ClData[]) => {
@@ -373,16 +327,65 @@ const separateArr = (arr: number[], period: number) => {
 
 function formatDate(date: number) {
   return new Date(date).toLocaleString()
-  // var d = new Date(date),
-  //     month = '' + (d.getMonth() + 1),
-  //     day = '' + d.getDate(),
-  //     year = d.getFullYear();
-
-  // if (month.length < 2) month = '0' + month;
-  // if (day.length < 2) day = '0' + day;
-
-  // return [year, month, day].join('-');
 }
+
+const triggerPercent = 15;
+const unSeenCount = 100;
+
+const prepSet = (indicData: IndicData, period: number, offset = 1) => {
+  const { prices, indic } = indicData;
+  const indics = separateArr(indic, period).splice(-unSeenCount);
+  const sepPrices = separateArr(prices, period).splice(-unSeenCount);
+  const set: { input: number[], output: number[] }[] = [];
+
+  indics.forEach((indic, i) => {
+    const nextEl = indics[i + 1];
+    if (!nextEl) return set.push({ input: [], output: [0] });
+    const maxPriceForOffset = Math.max(...nextEl.slice(0, offset));
+    const setEl = {
+      input: indic,
+      output: [0]
+    };
+    if ($u.percentChange(sepPrices[i][indic.length - 1], maxPriceForOffset) >= triggerPercent) {
+      setEl.output = [1];
+    }
+    set.push(setEl);
+  });
+
+  const positive = _.shuffle(set.filter(e => e.input.length && e.output[0]));
+  const negative = _.shuffle(set.filter(e => e.input.length && !e.output[0]));
+  const count = Math.min(positive.length, negative.length);
+  console.log(positive.length, negative.length, {count});
+  return _.shuffle(positive.splice(-count).concat(negative.splice(-count)));
+};
+
+const prepSet2 = (indicData: IndicData, period: number, offset = 1) => {
+  const { prices, indic } = indicData;
+  const indics = separateArr(indic, period).splice(-unSeenCount);
+  const sepPrices = separateArr(prices, period).splice(-unSeenCount);
+  const set: { input: number[], output: number[] }[] = [];
+
+  indics.forEach((indic, i) => {
+    const nextEl = sepPrices[i + period + 1];
+    if (!nextEl) return set.push({ input: [], output: [0] });
+    const maxPriceForOffset = Math.max(...nextEl.slice(0, offset));
+    // console.log(sepPrices[i], maxPriceForOffset)
+    const setEl = {
+      input: indic,
+      output: [0]
+    };
+    if ($u.percentChange(sepPrices[i][indic.length - 1], maxPriceForOffset) >= triggerPercent) {
+      setEl.output = [1];
+    }
+    set.push(setEl);
+  });
+
+  const positive = _.shuffle(set.filter(e => e.input.length && e.output[0]));
+  const negative = _.shuffle(set.filter(e => e.input.length && !e.output[0]));
+  const count = Math.min(positive.length, negative.length);
+  console.log(positive.length, negative.length, {count});
+  return _.shuffle(positive.splice(-count).concat(negative.splice(-count)));
+};
 
 ////// 
 document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 5, 60));
