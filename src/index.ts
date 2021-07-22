@@ -1,122 +1,52 @@
-import { getClines } from './utils';
+import $u from './utils';
+import { Cline } from './utils';
 import { trainModel, makePredictions } from './model';
+
 // import * as brain from './brainjsModel';
 // console.log({brain});
-let input_dataset: any = [];
+
 let result: any = [];
-let data_raw: any = [];
-let sma_vec: any = [];
+let data_raw: ClData[] = [];
+let sma_vec: SmaData[] = [];
+let clines: Cline[] = [];
+let indicData: {
+  times: number[];
+  indic: number[];
+  prices: number[];
+  volumes: number[];
+};
 let window_size = 50;
 let trainingsize = 70;
 const Plotly: any = (window as any).Plotly;
 const brain: any = (window as any).brain;
-
-type Sma_vec = any;
-
-const net = new brain.recurrent.LSTMTimeStep({
-  inputSize: 2,
-  hiddenLayers: [10],
-  outputSize: 2,
-});
-
-net.train([
-  [1, 3],
-  [2, 2],
-  [3, 1],
-]);
-
-const output = net.run([
-  [1, 3],
-  [2, 2],
-]); // [3, 1]
-
-console.log('OUT', output);
-// $(document).ready(function(){
-//   $('select').formSelect();
-// });
-
-
-// function onClickChangeDataFreq(freq){
-//   console.log(freq.value);
-//   data_temporal_resolutions = freq.value;
-//   // $("#input_datafreq").text(freq);
-// }
+type ClData = { timestamp: string, price: number, unix: number, vol: number };
 
 async function onClickFetchData(symbol: string, epochs = 3, minutes = 720) {
   (document.getElementById("input_epochs") as any).value = epochs;
-  // const clines = await getClines('binance','USDT-BTC', 999, 15); //  баржа, пара, период, TF в минутах
-  // const symbol = 'USDT-BTC';
   console.log('Fetch', symbol);
-  const clines = await getClines('binance', symbol, 999, minutes); //  баржа, пара, период, TF в минутах
+  clines = await $u.getClines('binance', symbol, 999, minutes); //  баржа, пара, период, TF в минутах
+  indicData = getSMA(clines, window_size);
+  // indicData = getPVT(clines);
+  // indicData = getPrices(clines);
+
   // let ticker = document.getElementById("input_ticker").value;
   $("#btn_fetch_data").hide();
   $("#load_fetch_data").show();
 
-  // let requestUrl = "";
-  // if(data_temporal_resolutions == 'Daily'){
-  //   requestUrl = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol="+ticker+"&outputsize=full&apikey="+apikey;
-  // }else{
-  //   requestUrl = "https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY_ADJUSTED&symbol="+ticker+"&apikey="+apikey;
-  // }
-
-  // $.getJSON(requestUrl
-  //   ,function(data){
-      // let data = gotten_data_raw;
-      // console.log(12, JSON.stringify(data))
-
-      let message = `CHECK [${symbol}] tf: ${minutes}`;
-      $("#div_container_linegraph").show();
-
-      // let daily = [];
-      // if(data_temporal_resolutions == 'Daily'){
-      //   daily = data['Time Series (Daily)'];
-      // }else{
-      //   daily = data['Weekly Adjusted Time Series'];
-      // }
-
-      // if(daily){
-        // let symbol = data['Meta Data']['2. Symbol'];
-        // let last_refreshed = data['Meta Data']['3. Last Refreshed'];
-
-        data_raw = clines.map(c => {
-          return { timestamp: formatDate(c.close_time * 1000), price: c.close, unix: c.close_time * 1000 };
-        });
-        sma_vec = [];
-        console.log('data_raw>', data_raw);
-        let index = 0;
-        
-        // for(let date in clines){
-        //   data_raw.push({ timestamp: date, price: parseFloat(daily[date]['5. adjusted close']) });
-        //   index++;
-        // }
-
-        // data_raw.reverse();
-
-        // message = "Symbol: " + symbol + " (last refreshed " + last_refreshed + ")";
-      // message = "Symbol: ";
-
-        $("#btn_fetch_data").show();
-        $("#load_fetch_data").hide();
-        $("#symbol-name").text(message);
-
-        // if(data_raw.length > 0){
-        //   let timestamps = data_raw.map(function (val) { return val['timestamp']; });
-        //   let prices = data_raw.map(function (val) { return val['price']; });
-
-        //   let graph_plot = document.getElementById('div_linegraph_data');
-        //   Plotly.newPlot( graph_plot, [{ x: timestamps, y: prices, name: "Stocks Prices" }], { margin: { t: 0 } } );
-        // }
-
-        $("#div_container_getsma").show();
-        $("#div_container_getsmafirst").hide();
-        onClickDisplaySMA();
-
-      // }else{
-      //   $("#div_linegraph_data").text( data['Information'] );
-      // }
-
-    // }
-  // );
+  let message = `CHECK [${symbol}] tf: ${minutes}`;
+  $("#div_container_linegraph").show();
+  data_raw = clines.map(c => {
+    return { timestamp: formatDate(c.close_time * 1000), price: c.close, unix: c.close_time * 1000, vol: c.volume } as ClData;
+  });
+  sma_vec = [];
+  console.log('data_raw>', data_raw);
+  let index = 0;
+  $("#btn_fetch_data").show();
+  $("#load_fetch_data").hide();
+  $("#symbol-name").text(message);
+  $("#div_container_getsma").show();
+  $("#div_container_getsmafirst").hide();
+  onClickDisplaySMA();
 
 }
 
@@ -129,56 +59,22 @@ function onClickDisplaySMA(){
 
   sma_vec = ComputeSMA(data_raw, window_size);
 
-  let sma = sma_vec.map(function (val: any) { return val['avg']; });
-  let prices = data_raw.map(function (val: any) { return val['price']; });
+  const { prices, times, indic, volumes} = indicData;
 
-  let timestamps_a = data_raw.map(function (val: any) { return val['timestamp']; });
-  let timestamps_b = data_raw.map(function (val: any) {
-    return val['timestamp'];
-  }).splice(window_size, data_raw.length);
-
+  const time_to_str = times.map(formatDate);
   let graph_plot = document.getElementById('div_linegraph_sma');
-  Plotly.newPlot( graph_plot, [{ x: timestamps_a, y: prices, name: "Stock Price" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timestamps_b, y: sma, name: "SMA" }], { margin: { t: 0 } } );
+  Plotly.newPlot( graph_plot, [{ x: time_to_str, y: prices, name: "Stock Price" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: time_to_str, y: indic, name: "PVT" }], { margin: { t: 0 } } );
+  Plotly.plot(graph_plot, [{ x: time_to_str, y: volumes.map(e => e / 3), name: "Vol" }], { margin: { t: 0 } });
 
   $("#div_linegraph_sma_title").text("Stock Price and Simple Moving Average (window: " + window_size + ")" );
   $("#btn_draw_sma").show();
   $("#load_draw_sma").hide();
 
   $("#div_container_train").show();
-  // $("#div_container_trainfirst").hide();
-
-  displayTrainingData();
-}
-
-
-function displayTrainingData(){
-  // $("#div_container_trainingdata").show();
-
-  let set = sma_vec.map(function (val: any) { return val['set']; });
-  let data_output = "";
-  for (let index = 0; index < 25; index++)
-  {
-     data_output += "<tr><td width=\"20px\">" + (index + 1) +
-      "</td><td>[" + set[index].map(function (val: any) {
-        return (Math.round(val['price'] * 10000) / 10000).toString();
-      }).toString() +
-      "]</td><td>" + sma_vec[index]['avg'] + "</td></tr>";
-  }
-
-  data_output = "<table class='striped'>" +
-  "<thead><tr><th scope='col'>#</th>" +
-  "<th scope='col'>Input (X)</th>" +
-  "<th scope='col'>Label (Y)</th></thead>" +
-  "<tbody>" + data_output + "</tbody>" +
-  "</table>";
-
-  $("#div_trainingdata").html(
-    data_output
-  );
+  // displayTrainingData();
   onClickTrainModel();
 }
-
 
 
 async function onClickTrainModel(){
@@ -189,11 +85,11 @@ async function onClickTrainModel(){
   $("#btn_draw_trainmodel").hide();
 
   document.getElementById("div_traininglog").innerHTML = "";
-
-  let inputs = sma_vec.map(function(inp_f: any){
-    return inp_f['set'].map(function(val: any) { return val['price']; })
-  });
-  let outputs = sma_vec.map(function(outp_f: any) { return outp_f['avg']; });
+  console.log('indicData', indicData);
+  let inputs = separateArr(indicData.indic, window_size);
+  let outputs = indicData.prices.slice().splice(-inputs.length);
+  // let inputs = separateArr(indicData.prices, window_size);
+  // let outputs = indicData.indic.slice().splice(-inputs.length);
 
   trainingsize = parseInt((document.getElementById("input_trainingsize") as any).value);
   let n_epochs = parseInt((document.getElementById("input_epochs") as any).value);
@@ -202,7 +98,7 @@ async function onClickTrainModel(){
 
   inputs = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
   outputs = outputs.slice(0, Math.floor(trainingsize / 100 * outputs.length));
-  let callback = function(epoch: number, log: any) {
+  let callbackChar = function(epoch: number, log: any) {
     let logHtml = document.getElementById("div_traininglog").innerHTML;
     logHtml = "<div>Epoch: " + (epoch + 1) + " (of "+ n_epochs +")" +
       ", loss: " + log.loss +
@@ -219,159 +115,260 @@ async function onClickTrainModel(){
     Plotly.newPlot( graph_plot, [{x: Array.from({length: epoch_loss.length}, (v, k) => k+1), y: epoch_loss, name: "Loss" }], { margin: { t: 0 } } );
   };
 
-  console.log('train X', inputs.length);
-  console.log('train Y', outputs.length);
+  console.log('train X', inputs);
+  console.log('train Y', outputs);
+  // console.log('indicData.prices', indicData.prices.length);
 
-  // inputs.splice(-5);
+  // const offset = 5;
+  // inputs.splice(-offset);
   // outputs = outputs.splice(-inputs.length);
-  const brainInput = sma_vec.map(function (inp_f: any) {
-    return inp_f['set'].map(function(val: any) { return val['price']; })
-  });
-  const net = new brain.recurrent.LSTMTimeStep({
-    inputSize: window_size,
-    hiddenLayers: [10],
-    outputSize: 1,
+
+  
+  // const brainTrainInput = inputs.map((input, i) => {
+  //   return { input, output: [outputs[i], outputs[i + 3], outputs[i + 5], outputs[i + 7], outputs[i + 9], outputs[i + 11]] }
+  // }).filter(s => s.output[5]);
+  const brainTrainInput = inputs.map((input, i) => {
+    return { input, output: [outputs[i]] }
+  })
+  // return 
+  console.log('brainInput', brainTrainInput);
+  const net = new brain.NeuralNetwork({
+    // inputSize: [window_size, window_size],
+    // inputRange: 20,
+    // hiddenLayers: [20, 20],
+    // outputSize: 20,
+    // learningRate: 0.01,
+    // decayRate: 0.999,
+    hiddenLayers: [4], // array of ints for the sizes of the hidden layers in the network
+    activation: 'sigmoid', // supported activation types: ['sigmoid', 'relu', 'leaky-relu', 'tanh'],
+    leakyReluAlpha: 0.01, // supported for activation type 'leaky-relu' 
   });
 
+  const callback_ = async (log: { iterations: number, error: number}) => {
+    callbackChar(log.iterations, { loss: log.error});
+  };
   net.train(
-    brainInput,
+    brainTrainInput,
     {
       log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
-      logPeriod: 10, // iterations between logging out --> number greater than 0
-      learningRate: 0.3, // scales with delta to effect training rate --> number between 0 and 1
-      momentum: 0.1, // scales with next layer's change value --> number between 0 and 1
-      callback(a, b, c) {
-        console.log('BRAIN log:', { a, b, c });
-      }, // a periodic call back that can be triggered while training --> null or function
-      callbackPeriod: 10, // the number of iterations through the training data between callback calls --> number greater than 0
+      logPeriod: 100, // iterations between logging out --> number greater than 0
+      learningRate: 0.03, // scales with delta to effect training rate --> number between 0 and 1
+      momentum: 0.05, // scales with next layer's change value --> number between 0 and 1
+      iterations: 11000,
+      binaryThresh: 0.035,
+      // binaryThresh: 0.000001,
+      callback: callback_, // a periodic call back that can be triggered while training --> null or function
+      callbackPeriod: 100, // the number of iterations through the training data between callback calls --> number greater than 0
     });
-
-  // const output = net.run([
-  //   [1, 3],
-  //   [2, 2],
-  // ]); // [3, 1]
-
-  // result = await trainModel(inputs, outputs, window_size, n_epochs, learningrate, n_hiddenlayers, callback);
-
-  let logHtml = document.getElementById("div_traininglog").innerHTML;
-  logHtml = "<div>Model train completed</div>" + logHtml;
-  document.getElementById("div_traininglog").innerHTML = logHtml;
+    console.log(net);
 
   $("#div_container_validate").show();
-  // $("#div_container_validatefirst").hide();
   $("#div_container_predict").show();
-  // $("#div_container_predictfirst").hide();
-  onClickValidate();
+  onClickValidate(net);
 }
 
-function onClickValidate() {
+function onClickValidate(brainNet: any) {
 
   $("#div_container_validating").show();
   $("#load_validating").show();
   $("#btn_validation").hide();
 
-  let inputs = sma_vec.map(function(inp_f: any) {
-   return inp_f['set'].map(function (val: any) { return val['price']; });
-  });
+ 
+  let inputs = separateArr(indicData.indic, window_size);
+  
+  console.log('INDICS:', indicData.indic);
+  console.log('INPUTS:', inputs);
+  console.log('indicData.prices:', indicData.prices);
 
+  const prices = indicData.prices.slice().splice(-inputs.length);
+  const times = indicData.times.slice().map(t => formatDate(t * 1000));
+  const times_prices = times.slice().splice(-prices.length);
+  console.log('time', times);
   // validate on training
   let val_train_x = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
-  // let outputs = sma_vec.map(function(outp_f) { return outp_f['avg']; });
-  // let outps = outputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
-  // console.log('val_train_x', val_train_x)
-  let val_train_y = makePredictions(val_train_x, result['model'], result['normalize']);
-  // console.log('val_train_y', val_train_y)
 
-  // validate on unseen
-  let val_unseen_x = inputs.slice(Math.floor(trainingsize / 100 * inputs.length), inputs.length);
-  // console.log('val_unseen_x', val_unseen_x)
-  let val_unseen_y = makePredictions(val_unseen_x, result['model'], result['normalize']);
-  // console.log('val_unseen_y', val_unseen_y)
+  const brainSeenInput = val_train_x;
+  const outSeen = brainSeenInput.map(i => {
+    const res = brainNet.run(i);
+    return res[res.length - 1];
+  });
+  
+  const brainUnseenInput = inputs.slice(Math.floor(trainingsize / 100 * inputs.length), inputs.length);
+  const outUnSeen = brainUnseenInput.map(i => {
+    const res = brainNet.run(i);
+    return res[res.length - 1];
+  });
+ 
+  const outUnSeen1 = brainUnseenInput.map(i => {
+    const res = brainNet.run(i);
+    return res[0];
+  });
+  
+  outUnSeen.unshift(outSeen[outSeen.length - 1]);
+  outUnSeen1.unshift(outSeen[outSeen.length - 1]);
+  
+  const timesUnSeen = times.splice(-outUnSeen.length);
+  const timesSeen = times.slice(window_size + 1, 100000);
 
-  let timestamps_a = data_raw.map(function (val: any) { return val['timestamp']; });
-  let timestamps_b = data_raw.map(function (val: any) {
-    return val['timestamp'];
-  }).splice(window_size, (data_raw.length - Math.floor((100-trainingsize) / 100 * data_raw.length))); //.splice(window_size, data_raw.length);
-  // let timestamps_c = data_raw.map(function (val) {
-  //   return val['timestamp'];
-  // }).splice(window_size + Math.floor(trainingsize / 100 * val_unseen_x.length), data_raw.length);
-  let timestamps_sma = data_raw.map(function (val: any) {
-    return val['timestamp'];
-  }).splice(window_size, data_raw.length);
+  console.log('brainSeenInput', brainSeenInput.length);
+  console.log('brainUnseenInput', brainUnseenInput.length);
 
-  let timestamps_c = data_raw.map(function (val: any) {
-    return val['timestamp'];
-  }).splice(window_size + Math.floor(trainingsize / 100 * inputs.length), inputs.length);
-
-  let sma = sma_vec.map(function (val: any) { return val['avg']; });
-  let prices = data_raw.map(function (val: any) { return val['price']; });
-  // sma = sma.slice(0, Math.floor(trainingsize / 100 * sma.length));
-  sma = sma.slice();
-
+  const brainInput = inputs.map((input, i) => {
+    return input 
+  });
+  const out = brainInput.map(i => brainNet.run(i)[0]);
+  console.log('Out len', out.length);
+  console.log('Times len', times.length);
+  // const times = timestamps_a.slice().splice(-out.length);
+  // return;
   let graph_plot = document.getElementById('div_validation_graph');
-  Plotly.newPlot( graph_plot, [{ x: timestamps_a, y: prices, name: "Actual Price" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timestamps_sma, y: sma, name: "Training Label (SMA)" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timestamps_b, y: val_train_y, name: "Predicted (train)" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timestamps_c, y: val_unseen_y, name: "Predicted (test)" }], { margin: { t: 0 } } );
+  Plotly.newPlot( graph_plot, [{ x: times_prices, y: prices, name: "Actual Price" }], { margin: { t: 0 } } );
+  // Plotly.plot( graph_plot, [{ x: timestamps_sma, y: sma, name: "Training Label (SMA)" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: timesSeen, y: outSeen, name: "Predicted (train)" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: timesUnSeen, y: outUnSeen, name: "Predicted (test)" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: timesUnSeen, y: outUnSeen1, name: "Predicted (test)" }], { margin: { t: 0 } } );
 
   $("#load_validating").hide();
-  onClickPredict();
+  // onClickPredict();
 }
 
-async function onClickPredict() {
+type SmaData = {
+  set: ClData[];
+  avg: number;
+};
+function ComputeSMA(data: ClData[], window_size: number): SmaData[] {
+  const maxPrice = Math.max(...data.map(e => e.price));
+  const minPrice = Math.min(...data.map(e => e.price));
 
-  $("#div_container_predicting").show();
-  $("#load_predicting").show();
-  $("#btn_prediction").hide();
-
-  let inputs = sma_vec.map(function(inp_f: any) {
-   return inp_f['set'].map(function (val: any) { return val['price']; });
+  const maxVol = Math.max(...data.map(e => e.vol));
+  const minVol = Math.min(...data.map(e => e.vol));
+  
+  console.log({maxPrice, minPrice, maxVol, minVol});
+  data.forEach(e => {
+    e.price = $u.normalise(e.price, minPrice, maxPrice);
+    e.vol = $u.normalise(e.vol, minVol, maxVol);
   });
-  let pred_X = [inputs[inputs.length-1]];
-  pred_X = pred_X.slice(Math.floor(trainingsize / 100 * pred_X.length), pred_X.length);
-  let pred_y = makePredictions(pred_X, result['model'], result['normalize']);
 
-  window_size = parseInt((document.getElementById("input_windowsize") as any).value);
-
-  let timestamps_d = data_raw.map(function (val: any) {
-    return val['unix'];
-  }).splice((data_raw.length - window_size), data_raw.length);
-  console.log({timestamps_d});
-  // date
-  const interval = timestamps_d[1] - timestamps_d[0];
-
-  let last_date = timestamps_d[timestamps_d.length-1];
-  console.log({interval, last_date});
-  // let add_days = 1;
-  // if(data_temporal_resolutions == 'Weekly'){
-  //   add_days = 7;
-  // }
-  // last_date.setDate(last_date.getDate() + add_days);
-  let next_date = last_date + interval;
-
-  let timestamps_e = next_date;
-  console.log('formatDate(timestamps_e)', formatDate(timestamps_e));
-
-  let graph_plot = document.getElementById('div_prediction_graph');
-  Plotly.newPlot( graph_plot, [{ x: timestamps_d.map(formatDate), y: pred_X[0], name: "Latest Trends" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: formatDate(timestamps_e), y: pred_y, name: "Predicted Price" }], { margin: { t: 0 } } );
-
-  $("#load_predicting").hide();
-}
-
-function ComputeSMA(data: any, window_size: number) {
-  const offset = 12;
+  const offset = 0;
   let r_avgs = [], avg_prev = 0;
-  for (let i = offset; i <= data.length - window_size; i++){
+  for (let i = offset; i <= data.length - window_size; i++) {
     let curr_avg = 0.00, t = i + window_size;
     for (let k = i; k < t && k <= data.length; k++){
       curr_avg += data[k]['price'] / window_size;
     }
-    r_avgs.push({ set: data.slice(i - offset, i + window_size - offset), avg: curr_avg });
-    // data[i + window_size + 1] && r_avgs.push({ set: data.slice(i, i + window_size), avg: data[i + window_size + 1].price });
+    // r_avgs.push({ set: data.slice(i - offset, i + window_size - offset), avg: curr_avg });
+    data[i + window_size + offset] && r_avgs.push({ set: data.slice(i, i + window_size), avg: data[i + window_size + offset].price });
     avg_prev = curr_avg;
   }
   return r_avgs;
+}
+
+
+// https://system-fx.ru/wp-content/uploads/2013/08/PVT_1-641x400.png
+
+const getPrices = (clines: Cline[]) => {
+  const { prices, times, volumes } = calcPVT(clines);
+  return {
+    times,
+    indic: normalizeArr(prices),
+    prices: normalizeArr(prices),
+    volumes: normalizeArr(volumes).map(v => v / 3)
+  }
+};
+const getPVT = (clines: Cline[]) => {
+  const { PVT, prices, times, volumes } = calcPVT(clines);
+  return {
+    times,
+    indic: normalizeArr(PVT),
+    prices: normalizeArr(prices),
+    volumes: normalizeArr(volumes)
+  }
+};
+const getSMA = (clines: Cline[], window_size: number) => {
+  const { SMA, prices, times, volumes } = calcSMA(clines, window_size);
+  return {
+    times,
+    indic: normalizeArr(SMA),
+    prices: normalizeArr(prices),
+    volumes: normalizeArr(volumes)
+  }
+};
+const calcPVT = (clines: Cline[]) => {
+  const clines_: Cline[] = JSON.parse(JSON.stringify(clines));
+  // const data_ = normmaliseClData(data);
+  // const maxPrice = Math.max(...clines_.map(c => Math.max(c.close, c.open, c.max, c.min)));
+  // const minPrice = Math.max(...clines_.map(c => Math.min(c.close, c.open, c.max, c.min)));
+  // const maxVol = Math.max(...clines_.map(c => c.volume));
+  // const minVol = Math.min(...clines_.map(c => c.volume));
+  // clines_.forEach(c => {
+  //   c.open = $u.normalise(c.open, minPrice, maxPrice);
+  //   c.close = $u.normalise(c.close, minPrice, maxPrice);
+  //   c.max = $u.normalise(c.max, minPrice, maxPrice);
+  //   c.min = $u.normalise(c.min, minPrice, maxPrice);
+  //   c.volume = $u.normalise(c.volume, minVol, maxVol);
+  // });
+  const PVT: number[] = [];
+  const prices: number[] = [];
+  const times: number[] = [];
+  const volumes: number[] = [];
+  for (let i = 1; i < clines_.length; i++) {
+    // PVT.push(((clines_[i].close - clines_[i - 1].close) / clines_[i - 1].close) * clines_[i].volume + (PVT[i - 1] || 0));
+    PVT.push(((clines_[i].close - clines_[i - 1].close) / clines_[i - 1].close) * clines_[i].volume);
+    prices.push(clines[i].close);
+    times.push(clines[i].close_time);
+    volumes.push(clines[i].volume);
+  }
+  return { PVT, prices, times, volumes };
+};
+
+const calcSMA = (clines: Cline[], window_size: number) => {
+  const clines_: Cline[] = JSON.parse(JSON.stringify(clines));
+  const SMA: number[] = [];
+  const prices: number[] = [];
+  const times: number[] = [];
+  const volumes: number[] = [];
+  for (let i = window_size; i < clines_.length; i++) {
+    // PVT.push(((clines_[i].close - clines_[i - 1].close) / clines_[i - 1].close) * clines_[i].volume + (PVT[i - 1] || 0));
+    SMA.push(clines.slice(i - window_size, i).reduce((s, c) => {
+      return s + c.close / window_size;
+    }, 0));
+    prices.push(clines[i].close);
+    times.push(clines[i].close_time);
+    volumes.push(clines[i].volume);
+  }
+  return { SMA, prices, times, volumes };
+};
+
+const normalizeArr = (data: number[]) => {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  return data.map(e => $u.normalise(e, min, max));
+};
+const normmaliseClData = (data: ClData[]) => {
+  const data_: ClData[] = JSON.parse(JSON.stringify(data));
+  const maxPrice = Math.max(...data_.map(e => e.price));
+  const minPrice = Math.min(...data_.map(e => e.price));
+
+  const maxVol = Math.max(...data_.map(e => e.vol));
+  const minVol = Math.min(...data_.map(e => e.vol));
+  
+  console.log({maxPrice, minPrice, maxVol, minVol});
+  data_.forEach(e => {
+    e.price = $u.normalise(e.price, minPrice, maxPrice);
+    e.vol = $u.normalise(e.vol, minVol, maxVol);
+  });
+  return data_;
+}
+
+const separateArr = (arr: number[], period: number) => {
+  // let prices: number[] = data_raw.map(function (val: any) { return val['price']; });
+  let inputs: number[][] = [];
+  let i = 0;
+  while (i <= arr.length - period) {
+    inputs.push(arr.slice(i, period + i));
+    i++;
+  }
+  return inputs;
 }
 
 function formatDate(date: number) {
