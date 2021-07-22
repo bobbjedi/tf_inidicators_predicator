@@ -1,19 +1,18 @@
 import $u from './utils';
 import { Cline } from './utils';
-import { trainModel, makePredictions } from './model';
-
 // import * as brain from './brainjsModel';
 // console.log({brain});
+
 
 let result: any = [];
 let data_raw: ClData[] = [];
 let sma_vec: SmaData[] = [];
 let clines: Cline[] = [];
 let indicData: {
-  times: number[];
-  indic: number[];
-  prices: number[];
-  volumes: number[];
+  readonly times: number[];
+  readonly indic: number[];
+  readonly prices: number[];
+  readonly volumes: number[];
 };
 let window_size = 50;
 let trainingsize = 70;
@@ -22,9 +21,33 @@ const brain: any = (window as any).brain;
 type ClData = { timestamp: string, price: number, unix: number, vol: number };
 
 async function onClickFetchData(symbol: string, epochs = 3, minutes = 720) {
+  const net = new brain.recurrent.LSTMTimeStep({
+    hiddenLayers: [4, 4],
+  });
+  // or
+  // const net = brain.recurrent.LSTMTimeSeries(options);
+  // or
+  // const net = brain.recurrent.GRUTimeSeries(options);
+  
+  // console.log(net.train([
+  //   [1,2,3,4,5],
+  //   [5,4,3,2,1],
+  //   [3,4,5,6,7],
+  //   [7,6,5,4,1],
+  //   [7,6,5,4,2],
+  //   // [5,4,3,2,1],
+  // ]));
+  
+  // console.log(net.run([1, 2, 3, 4]), '5');
+  // console.log(net.run([7, 6, 5, 4]), '1');
+  
+  
+
+
+  // return;
   (document.getElementById("input_epochs") as any).value = epochs;
   console.log('Fetch', symbol);
-  clines = await $u.getClines('binance', symbol, 999, minutes); //  баржа, пара, период, TF в минутах
+  clines = await $u.getClines('binance', symbol, 300, minutes); //  баржа, пара, период, TF в минутах
   indicData = getSMA(clines, window_size);
   // indicData = getPVT(clines);
   // indicData = getPrices(clines);
@@ -96,7 +119,7 @@ async function onClickTrainModel(){
   let learningrate = parseFloat((document.getElementById("input_learningrate") as any).value);
   let n_hiddenlayers = parseInt((document.getElementById("input_hiddenlayers") as any).value);
 
-  inputs = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
+  const trint_inputs = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
   outputs = outputs.slice(0, Math.floor(trainingsize / 100 * outputs.length));
   let callbackChar = function(epoch: number, log: any) {
     let logHtml = document.getElementById("div_traininglog").innerHTML;
@@ -115,8 +138,8 @@ async function onClickTrainModel(){
     Plotly.newPlot( graph_plot, [{x: Array.from({length: epoch_loss.length}, (v, k) => k+1), y: epoch_loss, name: "Loss" }], { margin: { t: 0 } } );
   };
 
-  console.log('train X', inputs);
-  console.log('train Y', outputs);
+  console.log('train X', trint_inputs);
+  // console.log('train Y', outputs);
   // console.log('indicData.prices', indicData.prices.length);
 
   // const offset = 5;
@@ -127,40 +150,47 @@ async function onClickTrainModel(){
   // const brainTrainInput = inputs.map((input, i) => {
   //   return { input, output: [outputs[i], outputs[i + 3], outputs[i + 5], outputs[i + 7], outputs[i + 9], outputs[i + 11]] }
   // }).filter(s => s.output[5]);
-  const brainTrainInput = inputs.map((input, i) => {
-    return { input, output: [outputs[i]] }
-  })
+  // const brainTrainInput = inputs.map((input, i) => {
+    // return { input] }
+  // })
   // return 
-  console.log('brainInput', brainTrainInput);
-  const net = new brain.NeuralNetwork({
+  console.log('brainInput', trint_inputs);
+  const net = new brain.recurrent.LSTMTimeStep({
+    hiddenLayers: [window_size, window_size],
+  });
+  
+  // const net = new brain.NeuralNetwork({
     // inputSize: [window_size, window_size],
     // inputRange: 20,
     // hiddenLayers: [20, 20],
     // outputSize: 20,
     // learningRate: 0.01,
     // decayRate: 0.999,
-    hiddenLayers: [4], // array of ints for the sizes of the hidden layers in the network
-    activation: 'sigmoid', // supported activation types: ['sigmoid', 'relu', 'leaky-relu', 'tanh'],
-    leakyReluAlpha: 0.01, // supported for activation type 'leaky-relu' 
-  });
+    // hiddenLayers: [4], // array of ints for the sizes of the hidden layers in the network
+    // activation: 'sigmoid', // supported activation types: ['sigmoid', 'relu', 'leaky-relu', 'tanh'],
+    // leakyReluAlpha: 0.01, // supported for activation type 'leaky-relu' 
+  // });
 
   const callback_ = async (log: { iterations: number, error: number}) => {
     callbackChar(log.iterations, { loss: log.error});
   };
+  const opt =   {
+    log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
+    logPeriod: 100, // iterations between logging out --> number greater than 0
+    learningRate: 0.03, // scales with delta to effect training rate --> number between 0 and 1
+    momentum: 0.05, // scales with next layer's change value --> number between 0 and 1
+    iterations: 100,
+    binaryThresh: 0.035,
+    // binaryThresh: 0.000001,
+    callback: callback_, // a periodic call back that can be triggered while training --> null or function
+    callbackPeriod: 100, // the number of iterations through the training data between callback calls --> number greater than 0
+  };
   net.train(
-    brainTrainInput,
-    {
-      log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
-      logPeriod: 100, // iterations between logging out --> number greater than 0
-      learningRate: 0.03, // scales with delta to effect training rate --> number between 0 and 1
-      momentum: 0.05, // scales with next layer's change value --> number between 0 and 1
-      iterations: 11000,
-      binaryThresh: 0.035,
-      // binaryThresh: 0.000001,
-      callback: callback_, // a periodic call back that can be triggered while training --> null or function
-      callbackPeriod: 100, // the number of iterations through the training data between callback calls --> number greater than 0
-    });
-    console.log(net);
+    trint_inputs,
+    opt
+  );
+
+    console.log('Done', net);
 
   $("#div_container_validate").show();
   $("#div_container_predict").show();
@@ -181,52 +211,55 @@ function onClickValidate(brainNet: any) {
   console.log('indicData.prices:', indicData.prices);
 
   const prices = indicData.prices.slice().splice(-inputs.length);
+  const realIndic = indicData.indic.slice().splice(-inputs.length);
   const times = indicData.times.slice().map(t => formatDate(t * 1000));
   const times_prices = times.slice().splice(-prices.length);
   console.log('time', times);
   // validate on training
   let val_train_x = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
 
-  const brainSeenInput = val_train_x;
+  const brainSeenInput = val_train_x.map(s => s.slice(0, s.length - 2));
   const outSeen = brainSeenInput.map(i => {
     const res = brainNet.run(i);
-    return res[res.length - 1];
+    return res;
   });
   
-  const brainUnseenInput = inputs.slice(Math.floor(trainingsize / 100 * inputs.length), inputs.length);
+  const brainUnseenInput = inputs.slice(Math.floor(trainingsize / 100 * inputs.length), inputs.length).map(s => s.slice(0, s.length - 2));
   const outUnSeen = brainUnseenInput.map(i => {
     const res = brainNet.run(i);
-    return res[res.length - 1];
+    return res;
   });
  
-  const outUnSeen1 = brainUnseenInput.map(i => {
-    const res = brainNet.run(i);
-    return res[0];
-  });
+  // const outUnSeen1 = brainUnseenInput.map(i => {
+  //   const res = brainNet.run(i);
+  //   console.log('res', res);
+  //   return res;
+  // });
   
   outUnSeen.unshift(outSeen[outSeen.length - 1]);
-  outUnSeen1.unshift(outSeen[outSeen.length - 1]);
+  // outUnSeen1.unshift(outSeen[outSeen.length - 1]);
   
   const timesUnSeen = times.splice(-outUnSeen.length);
   const timesSeen = times.slice(window_size + 1, 100000);
 
   console.log('brainSeenInput', brainSeenInput.length);
+  console.log('outUnSeen', outUnSeen);
   console.log('brainUnseenInput', brainUnseenInput.length);
 
-  const brainInput = inputs.map((input, i) => {
-    return input 
-  });
-  const out = brainInput.map(i => brainNet.run(i)[0]);
-  console.log('Out len', out.length);
-  console.log('Times len', times.length);
+  // const brainInput = inputs.map((input, i) => {
+  //   return input 
+  // });
+  // const out = brainInput.map(i => brainNet.run(i)[0]);
+  // console.log('Out len', out.length);
+  // console.log('Times len', times.length);
   // const times = timestamps_a.slice().splice(-out.length);
   // return;
   let graph_plot = document.getElementById('div_validation_graph');
   Plotly.newPlot( graph_plot, [{ x: times_prices, y: prices, name: "Actual Price" }], { margin: { t: 0 } } );
-  // Plotly.plot( graph_plot, [{ x: timestamps_sma, y: sma, name: "Training Label (SMA)" }], { margin: { t: 0 } } );
+  Plotly.plot( graph_plot, [{ x: times_prices, y: realIndic, name: "Training Label (SMA)" }], { margin: { t: 0 } } );
   Plotly.plot( graph_plot, [{ x: timesSeen, y: outSeen, name: "Predicted (train)" }], { margin: { t: 0 } } );
   Plotly.plot( graph_plot, [{ x: timesUnSeen, y: outUnSeen, name: "Predicted (test)" }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: timesUnSeen, y: outUnSeen1, name: "Predicted (test)" }], { margin: { t: 0 } } );
+  // Plotly.plot( graph_plot, [{ x: timesUnSeen, y: outUnSeen1, name: "Predicted (test)" }], { margin: { t: 0 } } );
 
   $("#load_validating").hide();
   // onClickPredict();
