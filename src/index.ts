@@ -48,9 +48,9 @@ async function onClickFetchData(symbol: string, epochs = 3, minutes = 720) {
   (document.getElementById("input_epochs") as any).value = epochs;
   console.log('Fetch', symbol);
   clines = await $u.getClines('binance', symbol, 300, minutes); //  баржа, пара, период, TF в минутах
-  indicData = getSMA(clines, window_size);
+  // indicData = getSMA(clines, window_size);
   // indicData = getPVT(clines);
-  // indicData = getPrices(clines);
+  indicData = getPrices(clines);
 
   // let ticker = document.getElementById("input_ticker").value;
   $("#btn_fetch_data").hide();
@@ -101,7 +101,7 @@ function onClickDisplaySMA(){
 
 
 async function onClickTrainModel(){
-
+  window_size = 15;
   let epoch_loss: string[] = [];
 
   $("#div_container_training").show();
@@ -156,7 +156,7 @@ async function onClickTrainModel(){
   // return 
   console.log('brainInput', trint_inputs);
   const net = new brain.recurrent.LSTMTimeStep({
-    hiddenLayers: [window_size, window_size],
+    hiddenLayers: [4, 4],
   });
   
   // const net = new brain.NeuralNetwork({
@@ -172,14 +172,15 @@ async function onClickTrainModel(){
   // });
 
   const callback_ = async (log: { iterations: number, error: number}) => {
-    callbackChar(log.iterations, { loss: log.error});
+    log.iterations && callbackChar(log.iterations, { loss: log.error});
+    !log.iterations && console.log('Start train'); 
   };
   const opt =   {
     log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
     logPeriod: 100, // iterations between logging out --> number greater than 0
     learningRate: 0.03, // scales with delta to effect training rate --> number between 0 and 1
     momentum: 0.05, // scales with next layer's change value --> number between 0 and 1
-    iterations: 100,
+    iterations: 500,
     binaryThresh: 0.035,
     // binaryThresh: 0.000001,
     callback: callback_, // a periodic call back that can be triggered while training --> null or function
@@ -218,13 +219,13 @@ function onClickValidate(brainNet: any) {
   // validate on training
   let val_train_x = inputs.slice(0, Math.floor(trainingsize / 100 * inputs.length));
 
-  const brainSeenInput = val_train_x.map(s => s.slice(0, s.length - 2));
+  const brainSeenInput = val_train_x.map(s => s.splice( -(s.length - 1)));
   const outSeen = brainSeenInput.map(i => {
     const res = brainNet.run(i);
     return res;
   });
   
-  const brainUnseenInput = inputs.slice(Math.floor(trainingsize / 100 * inputs.length), inputs.length).map(s => s.slice(0, s.length - 2));
+  const brainUnseenInput = inputs.slice(Math.floor(trainingsize / 100 * inputs.length), inputs.length).map(s => s.splice( -(s.length - 1)));
   const outUnSeen = brainUnseenInput.map(i => {
     const res = brainNet.run(i);
     return res;
@@ -242,9 +243,11 @@ function onClickValidate(brainNet: any) {
   const timesUnSeen = times.splice(-outUnSeen.length);
   const timesSeen = times.slice(window_size + 1, 100000);
 
-  console.log('brainSeenInput', brainSeenInput.length);
-  console.log('outUnSeen', outUnSeen);
-  console.log('brainUnseenInput', brainUnseenInput.length);
+  console.log('brainSeenInput:', brainSeenInput);
+  console.log('brainUnseenInput:', brainUnseenInput);
+  console.log('outUnSeen:', outUnSeen);
+  console.log('brainUnseenInput:', brainUnseenInput);
+  console.log('Prices:', prices);
 
   // const brainInput = inputs.map((input, i) => {
   //   return input 
