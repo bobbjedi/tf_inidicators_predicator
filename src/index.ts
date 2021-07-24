@@ -3,6 +3,7 @@ import { Candel } from './utils';
 // import * as brain from 'brain.js';
 import { trainModel, makePredictions } from './model';
 import * as _ from 'underscore';
+import { output } from '../webpack.config';
 
 // import * as brain from './brainjsModel';
 // console.log({brain});
@@ -18,7 +19,6 @@ const result: any = [];
 let data_raw: ClData[] = [];
 let sma_vec: SmaData[] = [];
 let candels: Candel[] = [];
-let indicData: IndicData;
 let window_size = 50;
 
 const Plotly: any = (window as any).Plotly;
@@ -51,36 +51,8 @@ async function onClickFetchData(symbol: string, period = 3, minutes = 720) {
   $('#symbol-name').text(message);
   $('#div_container_getsma').show();
   $('#div_container_getsmafirst').hide();
-  // onClickDisplaySMA();
   onClickTrainModel();
 }
-
-function onClickDisplaySMA(){
-  $('#btn_draw_sma').hide();
-  $('#load_draw_sma').show();
-  $('#div_container_sma').show();
-
-  // window_size = parseInt((document.getElementById("input_windowsize") as any).value);
-
-  sma_vec = ComputeSMA(data_raw, window_size);
-
-  const { prices, times, indic, volumes} = indicData;
-
-  const time_to_str = times.map(formatDate);
-  const graph_plot = document.getElementById('div_linegraph_sma');
-  Plotly.newPlot( graph_plot, [{ x: time_to_str, y: prices, name: 'Stock Price' }], { margin: { t: 0 } } );
-  Plotly.plot( graph_plot, [{ x: time_to_str, y: indic, name: 'PVT' }], { margin: { t: 0 } } );
-  Plotly.plot(graph_plot, [{ x: time_to_str, y: volumes.map(e => e / 3), name: 'Vol' }], { margin: { t: 0 } });
-
-  $('#div_linegraph_sma_title').text('Stock Price and Simple Moving Average (window: ' + window_size + ')' );
-  $('#btn_draw_sma').show();
-  $('#load_draw_sma').hide();
-
-  $('#div_container_train').show();
-  // displayTrainingData();
-  onClickTrainModel();
-}
-
 
 async function onClickTrainModel(){
   // window_size = 14;
@@ -90,12 +62,8 @@ async function onClickTrainModel(){
   $('#btn_draw_trainmodel').hide();
 
   document.getElementById('div_traininglog').innerHTML = '';
-  console.log('indicData', indicData);
   const set = prepSet(candels);
   console.log('Set:', set.length);
-  // return;
-  // trainingsize = parseInt((document.getElementById('input_trainingsize') as any).value);
-  // const n_epochs = parseInt((document.getElementById('input_epochs') as any).value);
   const n_epochs = 99;
   const callbackChar = (epoch: number, log: any) => {
     let logHtml = document.getElementById('div_traininglog').innerHTML;
@@ -113,14 +81,11 @@ async function onClickTrainModel(){
   };
 
   const net = new brain.NeuralNetwork({
-    // inputSize: [window_size, window_size],
-    // inputRange: 20,
-    // hiddenLayers: [20, 20],
     // outputSize: 20,
     // learningRate: 0.01,
     // decayRate: 0.999,
     // hiddenLayers: [window_size, window_size], // array of ints for the sizes of the hidden layers in the network
-    hiddenLayers: [8], // array of ints for the sizes of the hidden layers in the network
+    hiddenLayers: [32, 64, 32], // array of ints for the sizes of the hidden layers in the network
     // activation: 'leaky-relu', // supported activation types: ['sigmoid', 'relu', 'leaky-relu', 'tanh'],
     // leakyReluAlpha: 0.01, // supported for activation type 'leaky-relu'
   });
@@ -128,8 +93,13 @@ async function onClickTrainModel(){
   const callback_ = async (log: { iterations: number, error: number}) => {
     callbackChar(log.iterations, { loss: log.error});
   };
+  // const setForOuts = repSetByOutputs(set);
+  // const setForOuts = separateArr(set.map((s, i) => {
+  //   return { input: s.set, output: set[i + 1].set.output[0] };
+  // }), 10);
   console.log('Res train', net.train(
-    set.map(s =>s.set),
+    _.shuffle(set.map(s => s.set)),
+    // _.shuffle(setForOuts.slice()),
     {
       log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
       logPeriod: 100, // iterations between logging out --> number greater than 0
@@ -145,6 +115,7 @@ async function onClickTrainModel(){
 
   $('#div_container_validate').show();
   $('#div_container_predict').show();
+  // set.set = setForOuts;
   onClickValidate(net, set);
 }
 
@@ -164,59 +135,20 @@ function onClickValidate(brainNet: any, set: Set[]) {
   console.log('knownOutputs:', knownOutputs);
   console.log('times:', times);
   console.log('prices:', prices);
-  // return;
-  // const prices = indicData.prices.slice().splice(-inputs.length);
-  // // const times = indicData.times.slice().map(t => formatDate(t * 1000));
-  // const times_prices = times.slice().splice(-prices.length);
-  // console.log('time', times);
-
-  // const brainInput = separateArr(indicData.indic, window_size);
-  // const outUnSeen = normalizeArr(brainInput.map(i => brainNet.run(i)[0])).splice(-unSeenCount).map(e => e / 3);
-  // const out = normalizeArr(brainInput.map(i => brainNet.run(i)[0])).map(e => e / 3);
-
-  // const times_brain = times.slice().splice(-out.length);
-  // const timesUnseen = times_brain.splice(-unSeenCount);
-
-  // console.log('Out len', out.length);
-  // console.log('outUnSeen len', outUnSeen.length);
-  // console.log('Prices len', prices.length);
-  // console.log('Times len', times.length);
 
 
-  // Second net
-  // const net2 = new brain.NeuralNetwork({
-  //   hiddenLayers: [window_size, window_size],
-  // });
-  // // times: number[];
-  // // indic: number[];
-  // // prices: number[];
-  // // volumes: number[];
-  // const data = {
-  //   prices,
-  //   indic: out.concat(outUnSeen).splice(-prices.length)
-  // } as IndicData;
-  // const set2 = prepSet2(data, window_size);
-  // console.log('Set2', set2);
 
-  // net2.train(
-  //   set2,
-  //   {
-  //     log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
-  //     logPeriod: 100, // iterations between logging out --> number greater than 0
-  //     learningRate: 0.03, // scales with delta to effect training rate --> number between 0 and 1
-  //     momentum: 0.01, // scales with next layer's change value --> number between 0 and 1
-  //     iterations: 20000,
-  //     binaryThresh: 0.035,
-  //     callbackPeriod: 100, // the number of iterations through the training data between callback calls --> number greater than 0
-  //   });
+// 2 net
 
-  // const out2 = normalizeArr(separateArr(out.concat(outUnSeen), window_size).splice(-times_prices).map(i => net2.run(i)[0])).map(e => e / 3);
-  // console.log('out2>>>', out2)
-  // return;
+
+
+
+
+
   const graph_plot = document.getElementById('div_validation_graph');
   Plotly.newPlot(graph_plot, [{ x: times, y: prices, name: 'Actual Price' }], { margin: { t: 0 } });
-  // Plotly.plot(graph_plot, [{ x: times, y: outputs, name: 'Training Label (SMA)'}], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: times, y: knownOutputs, name: 'Training Label (SMA)'}], { margin: { t: 0 } });
+  Plotly.plot(graph_plot, [{ x: times, y: outputs, name: 'Training Label (SMA)'}], { margin: { t: 0 } });
+  Plotly.plot(graph_plot, [{ x: times, y: normalizeArr(knownOutputs), name: 'Training Label (SMA)'}], { margin: { t: 0 } });
   // Plotly.plot( graph_plot, [{ x: timesUnseen, y: outUnSeen, name: 'Predicted (train)' }], { margin: { t: 0 } } );
   // Plotly.plot(graph_plot, [{ x: times_prices, y: out2, name: "Predicted (train)" }], { margin: { t: 0 } });
   Plotly.plot(graph_plot, [{ x: times, y: prices.map(e => 0.5), name: 'Predicted (train)' }], { margin: { t: 0 } });
@@ -286,7 +218,6 @@ const normmaliseClData = (data: ClData[]) => {
 };
 
 const separateArr = <Type>(arr: Type[], period: number) => {
-  // let prices: number[] = data_raw.map(function (val: any) { return val['price']; });
   const inputs: Type[][] = [];
   let i = 0;
   while (i <= arr.length - period) {
@@ -299,9 +230,6 @@ const separateArr = <Type>(arr: Type[], period: number) => {
 function formatDate(date: number) {
   return new Date(date).toLocaleString();
 }
-
-const triggerPercent = 10;
-const unSeenCount = 100;
 
 type Set = {
   set: {
@@ -321,16 +249,21 @@ const prepSet = (candels_: Candel[], offset = 1) => {
     const change2 = $u.mathChangedLast2Candels($u.resizeCandels(e, 4), 1);
     const change3 = $u.mathChangedLast2Candels($u.resizeCandels(e, 6), 1);
     const change4 = $u.mathChangedLast2Candels($u.resizeCandels(e, 8), 1);
-    const change5 = $u.mathChangedLast2Candels($u.resizeCandels(e, 10), 1);
-
+    const change5 = $u.mathChangedLast2Candels($u.resizeCandels(e, 12), 1);
+    const change6 = $u.mathChangedLast2Candels($u.resizeCandels(e, 12), 1);
+    // const change5 = $u.mathChangedLast2Candels($u.resizeCandels(e, 10), 1);
+    // console.log('',change3);
     const { close, close_time } = e[e.length - 1];
-    const nextMaxClose = Math.max(arrCandels[i + offset][arrCandels[i + offset].length - 1].close, arrCandels[i + offset + 1][arrCandels[i + offset + 1].length - 1].close);
+    const nextMaxClose = Math.max(arrCandels[i + offset][arrCandels[i + offset].length - 1].close);
     const output = $u.percentChange(close, nextMaxClose);
 
     set.push({
       set: {
-        input: [change1.price, change2.price, change3.price, change4.price],
-        // input: [change3.price, change6.price, change9.price, change12.price, change3.volume, change6.volume, change9.volume, change12.volume],
+        input: [
+          change1.price, change2.price, change3.price, change4.price, change5.price, change6.price,
+          // change1.volume, change2.volume, change3.volume, change4.volume, change5.volume, change6.volume
+        ],
+        // input: normalizeArr([change1.price, change2.price, change3.price, change4.price, change5.price]),
         output: [output]
       },
       price: close,
@@ -346,17 +279,16 @@ const prepSet = (candels_: Candel[], offset = 1) => {
   console.log({ positive, negative, count });
   // const filterred = _.shuffle(positive.concat(negative, flet));
   const filterred = set;
-  const allInputs = filterred
-    .map(e => e.set.input)
-    .reduce((s, a) => {
-      return s.concat(a);
-    }, []);
+  // const allInputs = filterred
+  //   .map(e => e.set.input)
+  //   .reduce((s, a) => {
+  //     return s.concat(a);
+  //   }, []);
 
   const allOutputs = filterred
     .map(e => e.set.output[0]);
-  console.log({ allInputs, allOutputs });
-  const maxInput = Math.max(...allInputs);
-  const minInput = Math.min(...allInputs);
+  // const maxInput = Math.max(...allInputs);
+  // const minInput = Math.min(...allInputs);
   const maxOut = Math.max(...allOutputs);
   const minOut = Math.min(...allOutputs);
   // return;
@@ -366,30 +298,10 @@ const prepSet = (candels_: Candel[], offset = 1) => {
   const maxPrice = Math.max(...set.map(e => e.price));
   const minPrice = Math.min(...set.map(e => e.price));
   set.forEach(s => {
-    s.set.input = s.set.input.map(i => $u.normalise(i, minInput, maxInput));
+    // s.set.input = s.set.input.map(i => $u.normalise(i, minInput, maxInput));
     s.set.output = s.set.output.map(o => $u.normalise(o, minOut, maxOut));
     s.price = $u.normalise(s.price, minPrice, maxPrice);
   });
-  // const { prices, indic } = indicData;
-  // console.log({prices, indic});
-  // const indics = separateArr(indic, period).slice(0, indic.length - unSeenCount);
-  // const sepPrices = separateArr(prices, period).slice(0, indic.length - unSeenCount);
-  // const set: { input: number[], output: number[] }[] = [];
-
-  // indics.forEach((indic, i) => {
-  //   const nextEl = indics[i + offset];
-  //   if (!nextEl) return set.push({ input: [], output: [0] });
-  //   const maxPriceForOffset = Math.max(...nextEl.slice(0, offset));
-  //   const setEl = {
-  //     input: indic,
-  //     output: [0]
-  //     // output: [maxPriceForOffset]
-  //   };
-  //   if ($u.percentChange(sepPrices[i][indic.length - 1], maxPriceForOffset) >= triggerPercent) {
-  //     setEl.output = [1];
-  //   }
-  //   set.push(setEl);
-  // });
   console.log('All set', set);
   // return _.shuffle(set);
   return set;
@@ -399,6 +311,25 @@ const prepSet = (candels_: Candel[], offset = 1) => {
   // console.log(positive.length, negative.length, {count});
   // return _.shuffle(positive.splice(-count).concat(negative.splice(-count)));
   // return _.shuffle(positive.concat(negative));
+};
+const repSetByOutputs = (set: Set[]) => {
+  const inputs = separateArr(set.map(s => s.set.output[0]), 10);
+  const outputs = inputs.map((input, i) => {
+    const nextInput = inputs[i + 1];
+    if (!nextInput) return;
+    return nextInput.slice().splice(-1)[0];
+  });
+
+  const setForOuts: Set['set'][] = [];
+  inputs.forEach((inp, i) => {
+    if (!outputs[i]) return;
+    setForOuts.push({
+      input: inp,
+      output: [outputs[i]]
+    });
+  });
+  console.log('setForOuts', setForOuts);
+  return setForOuts;
 };
 
 // const prepSet2 = (indicData: IndicData, period: number, offset = 1) => {
@@ -462,4 +393,4 @@ const prepSet = (candels_: Candel[], offset = 1) => {
 // };
 
 //////
-document.addEventListener('DOMContentLoaded', () => onClickFetchData('BTC-ETH', 14, 60));
+document.addEventListener('DOMContentLoaded', () => onClickFetchData('USDT-BTC', 14, 60));
