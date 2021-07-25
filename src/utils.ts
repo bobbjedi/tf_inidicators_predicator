@@ -39,7 +39,11 @@ const prepInputFromCandels = (candels: Candel[]) => {
     // const input = normalizeArr([
     //   change1.price, change2.price, change3.price, change4.price, change5.price, change6.price,
     // ]).concat(normalizeArr([change1.volume, change2.volume, change3.volume, change4.volume, change5.volume, change6.volume]));
-    return { inp: [change1.price, change2.price, change3.price, change4.price, change5.price, change6.price], unix: candels[candels.length - 1].close_time * 1000, time: formatDate(candels[candels.length - 1].close_time * 1000) };
+    return {
+        inp: normalizeArr([change1.price, change2.price, change3.price, change4.price, change5.price, change6.price])
+            .concat(normalizeArr([change1.volume, change2.volume, change3.volume, change4.volume, change5.volume, change6.volume])),
+        unix: candels[candels.length - 1].close_time * 1000, time: formatDate(candels[candels.length - 1].close_time * 1000)
+    };
 };
 // window.percentChange = percentChange;
 const prepSet = (candels_: Candel[], offset = 1) => {
@@ -87,20 +91,19 @@ const prepSet = (candels_: Candel[], offset = 1) => {
     });
 
     const positive = _.shuffle(set.filter(e => e.set.output[0] > .5));
-    // const flet = _.shuffle(set.filter(e => e.set.output[0] > .45 && e.set.output[0] < .55));
-    // const flet = [];
-    const negative = _.shuffle(set.filter(e => e.set.output[0] < .5));
-    const count = Math.min(positive.length, negative.length);
-    console.log({ positive, negative, count });
+    const flet = _.shuffle(set.filter(e => e.set.output[0] && e.set.output[0] < .45));
+    const negative = _.shuffle(set.filter(e => e.set.output[0] === 0));
+    const count = Math.min(positive.length, negative.length, flet.length);
+    console.log({ positive, negative, flet, count });
     // const filterred = _.shuffle(positive.concat(negative, flet));
-    const filterred = set;
+    const triningSet = flet.splice(-count).concat(positive.splice(-count), negative.splice(-count));
     // const allInputs = filterred
     //   .map(e => e.set.input)
     //   .reduce((s, a) => {
     //     return s.concat(a);
     //   }, []);
 
-    const allOutputs = filterred
+    const allOutputs = triningSet
         .map(e => e.set.output[0]);
     // const maxInput = Math.max(...allInputs);
     // const minInput = Math.min(...allInputs);
@@ -119,7 +122,7 @@ const prepSet = (candels_: Candel[], offset = 1) => {
     });
     console.log('All set', set);
     // return _.shuffle(set);
-    return { set, lastInput };
+    return { triningSet, set, lastInput };
     // const positive = _.shuffle(set.filter(e => e.input.length && e.output[0]));
     // const negative = _.shuffle(set.filter(e => e.input.length && !e.output[0]));
     // const count = Math.min(positive.length, negative.length);
@@ -179,7 +182,7 @@ export const getUrl = (market: MarketName, pairName: string, count_candels: numb
 const normalizeArr = (data: number[]) => {
     const max = Math.max(...data);
     const min = Math.min(...data);
-    console.log({max, min});
+    // console.log({max, min});
     return data.map(e => $u.normalise(e, min, max));
 };
 function mathChangedLast2Candels(candels: Candel[], round = 8) {

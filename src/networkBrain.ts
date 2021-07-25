@@ -9,10 +9,11 @@ import $u from './utils';
 export const trainBrainNet = async ({ symbol, tf, countCandels, testCount, callback }: { symbol: string; tf: number, countCandels: number, testCount: number, callback?: (a: any) => void }) => {
     callback = callback || console.log;
     const candels = await $u.getCandels('binance', symbol, countCandels, tf); //  баржа, пара, период, TF в минутах
-    const { set, lastInput } = $u.prepSet(candels);
+    const { triningSet, set, lastInput } = $u.prepSet(candels);
 
     const netOptions = {
-        hiddenLayers: [32, 64, 32], // array of ints for the sizes of the hidden layers in the network
+        mode: 'gpu',
+        hiddenLayers: [32, 64, 64, 32], // array of ints for the sizes of the hidden layers in the network
     };
     const trainingOptions = {
         log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
@@ -23,8 +24,8 @@ export const trainBrainNet = async ({ symbol, tf, countCandels, testCount, callb
         callback,
         callbackPeriod: 100, // the number of iterations through the training data between callback calls --> number greater than 0
     };
-    const trainingData = _.shuffle(set.slice(0, set.length - testCount).map(s => s.set));
-
+    const trainingData = _.shuffle(triningSet.map(s => s.set));
+    console.log('triningSet', triningSet);
     // const crossValidate = new brain.CrossValidate(brain.NeuralNetwork, netOptions);
     // const stats = crossValidate.train(trainingData, trainingOptions);
     // const net = crossValidate.toNeuralNetwork();

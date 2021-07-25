@@ -1,8 +1,9 @@
 import $u, { Set, LastInput } from './utils';
 import * as _ from 'underscore';
-import * as brain from './brain';
-import { trainBrainNet } from './network';
-// import { trainCarrotNet} from './networkNeataptic';
+
+// import { trainTfPercNet as model } from './tfPerceptron';
+import { trainBrainNet  as model} from './networkBrain';
+// import { trainCarrotNet as model } from './networkNeataptic';
 
 const Plotly: any = (window as any).Plotly;
 // const brain: any = (window as any).brain;
@@ -24,7 +25,10 @@ function onClickValidate(brainNet: any, set: Set[], lastInput: LastInput, testCo
   const knownTimes = times.slice();
   const unknownOutputs = inputs.splice(-testCount).concat([lastInput.inp]).map(i => brainNet.run(i)[0]);
   const unknownTimes = knownTimes.splice(-testCount).concat($u.formatDate(lastInput.unix));
-  const knownOutputs = inputs.map(i => brainNet.run(i)[0]);
+  const knownOutputs = inputs.map(i => {
+    // console.log('brainNet.run(i)', brainNet.run(i));
+    return brainNet.run(i)[0];
+  });
 
   // const knownOutputs = inputs
 
@@ -82,7 +86,7 @@ async function onClickTrainModel(symbol: string, tf: number, countCandels: numbe
     callbackChar(log.iterations, { loss: log.error});
   };
 
-  const { net, set, lastInput } = await trainBrainNet({ symbol, tf, countCandels, callback, testCount });
+  const { net, set, lastInput } = await model({ symbol, tf, countCandels, callback, testCount });
   console.log('NETWORK!', net);
 
   $('#div_container_validate').show();

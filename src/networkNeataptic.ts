@@ -22,26 +22,26 @@ export const trainCarrotNet = async ({ symbol, tf, countCandels, testCount, call
     //     hiddenLayers: [32, 64, 32], // array of ints for the sizes of the hidden layers in the network
     // };
     const trainingData = _.shuffle(set.slice(0, set.length - testCount).map(s => s.set));
-    // const net = new architect.Perceptron(set[0].set.input.length, 32, 64, 32, set[0].set.output.length);
-    const net = new Network(set[0].set.input.length, 32, 64, 32, set[0].set.output.length);
-    // await net.evolve(trainingData, {
-    //     iterations: 5000,
-    //     mutation: methods.mutation.ALL,
-    //     equal: true,
-    //     error: 0.005,
-    //     elitism: 5,
-    //     mutation_rate: 0.5,
-    //     schedule: {
-    //         iterations: 10,
-    //         function: callback
-    //     }
-    // });
-    await net.train(trainingData, {
-        log: 10,
-        error: 0.003,
-        iterations: 1000,
-        rate: 0.3
-      });
+  const net = new architect.Perceptron(set[0].set.input.length, 32, set[0].set.output.length);
+    // const net = new Network(set[0].set.input.length, set[0].set.output.length);
+    await net.evolve(trainingData, {
+        iterations: 5000,
+        mutation: methods.mutation.ALL,
+        equal: true,
+        error: 0.005,
+        elitism: 5,
+        mutation_rate: 0.5,
+        schedule: {
+            iterations: 10,
+            function: callback
+        }
+    });
+    // await net.train(trainingData, {
+    //     log: 10,
+    //     error: 0.003,
+    //     iterations: 1000,
+    //     rate: 0.3
+    //   });
 
     net.run = (input: number[]) => net.activate.call(net, input);
     console.log('net:', net);
