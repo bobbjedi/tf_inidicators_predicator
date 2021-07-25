@@ -7,8 +7,8 @@ const Plotly: any = (window as any).Plotly;
 // const brain: any = (window as any).brain;
 type ClData = { timestamp: string, price: number, unix: number, vol: number };
 
-document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-BTC', 60, 1000, 0));
-const isUseSavedNet = false;
+document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-XRP', 60, 1000, 0));
+const isUseSavedNet = true;
 
 function predict(net: any, set: Set[], lastInput: LastInput) {
   $('#div_container_validating').show();
@@ -19,16 +19,18 @@ function predict(net: any, set: Set[], lastInput: LastInput) {
   const prices = set.map(s => s.price).concat(lastInput.price);
   const inputs = set.map(s => s.set.input);
   const outputs = set.map(s => s.set.output[0]);
-  const predicts = inputs.concat(lastInput.inp).map(i => net.run(i)[0]).splice(-prices.length);
+  // const predicts = inputs.concat(lastInput.inp).map(i => net.run(i)[0]).splice(-prices.length);
+  const predicts = inputs.map(i => net.run(i)[0]);
+  predicts.push(net.run(lastInput.inp)[0]);
   const fullTimes = times.slice();
   fullTimes.push($u.formatDate(lastInput.unix));
 
   const signalsTimes: string[] = [];
   for (let i = 1; i < times.length; i++) {
     if (
-      predicts[i] > 0.5 && outputs[i] > 0.5 // both more that 0.5
-      && predicts[i - 1] < 0.1 && outputs[i - 1] < 0.1 // both pred was low
-      && predicts[i + 1] < 0.3 // next predict low again
+      // predicts[i] > 0.2 && outputs[i] > 0.3 // both more that 0.5
+      predicts[i - 1] < 0.2 && outputs[i - 1] < 0.2 // both pred was low
+      && predicts[i] > 0.5 // next predict low again
     ) {
       signalsTimes.push(times[i]);
     }
@@ -44,7 +46,7 @@ function predict(net: any, set: Set[], lastInput: LastInput) {
   Plotly.newPlot(graph_plot, [{ x: fullTimes, y: $u.normalizeArr(prices), name: 'Actual Price' }], { margin: { t: 0 } });
   Plotly.plot(graph_plot, [{ x: times, y: outputs, name: 'Calc out'}], { margin: { t: 0 } });
   Plotly.plot(graph_plot, [{ x: fullTimes, y: predicts, name: 'Predict'}], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: signalsTimes, y: signalsTimes.map(e => .5), name: 'Predict' }], { margin: { t: 0 } });
+  Plotly.plot(graph_plot, [{ x: signalsTimes, y: signalsTimes.map(x => .5), name: 'Predict' }], { margin: { t: 0 } });
 }
 
 function onClickValidate(brainNet: any, set: Set[], lastInput: LastInput, testCount: number) {
