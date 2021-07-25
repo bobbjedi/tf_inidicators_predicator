@@ -25,12 +25,12 @@ export const trainNet = async ({ symbol, tf, countCandels, testCount, callback, 
     const trainingOptions = {
         log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
         logPeriod: 100, // iterations between logging out --> number greater than 0
-        learningRate: 0.2, // scales with delta to effect training rate --> number between 0 and 1
-        momentum: 0.2, // scales with next layer's change value --> number between 0 and 1
+        learningRate: 0.4, // scales with delta to effect training rate --> number between 0 and 1
+        momentum: 0.4, // scales with next layer's change value --> number between 0 and 1
         iterations: 50000,
         callback,
         callbackPeriod: 100, // the number of iterations through the training data between callback calls --> number greater than 0
-        errorThresh: 0.0005, // the acceptable error percentage from training data --> number between 0 and 1
+        errorThresh: 0.005, // the acceptable error percentage from training data --> number between 0 and 1
         timeout: Infinity, // the max number of milliseconds to train for --> number greater than 0
     };
 

@@ -7,8 +7,8 @@ const Plotly: any = (window as any).Plotly;
 // const brain: any = (window as any).brain;
 type ClData = { timestamp: string, price: number, unix: number, vol: number };
 
-document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-BTC', 60, 1000, 200));
-const isUseSavedNet = true;
+document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-BTC', 60, 1000, 0));
+const isUseSavedNet = false;
 
 function predict(net: any, set: Set[], lastInput: LastInput) {
   $('#div_container_validating').show();

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "webpack --mode development --watch",
     "node": "tsc --project tsconfig.node.json --watch",
+    "build_node": "ncc -m build ./bin/node -o servBrain/",
     "test": "echo \"Error: no test specified\" && exit 1",
     "push": "git push https://github.com/jinglescode/time-series-forecasting-tensorflowjs.git master"
   },
