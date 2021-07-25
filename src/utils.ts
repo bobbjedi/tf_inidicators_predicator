@@ -1,4 +1,132 @@
+import * as _ from 'underscore';
+import axios from 'axios';
 type MarketName = 'binance' | 'bittrex' | 'poloniex';
+
+
+
+function formatDate(date: number) {
+    return new Date(date).toLocaleString();
+}
+
+export type Set = {
+    set: {
+        input: number[];
+        output: number[];
+    },
+    price: number;
+    unix: number;
+    time: string;
+};
+
+export type LastInput = { inp: number[], unix: number, price: number };
+const separateArr = <Type>(arr: Type[], period: number) => {
+    const inputs: Type[][] = [];
+    let i = 0;
+    while (i <= arr.length - period) {
+      inputs.push(arr.slice(i, period + i));
+      i++;
+    }
+    return inputs;
+};
+const prepInputFromCandels = (candels: Candel[]) => {
+    const change1 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 2), 1);
+    const change2 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 4), 1);
+    const change3 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 6), 1);
+    const change4 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 8), 1);
+    const change5 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 10), 1);
+    const change6 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 12), 1);
+    const change7 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 14), 1);
+    // const input = normalizeArr([
+    //   change1.price, change2.price, change3.price, change4.price, change5.price, change6.price,
+    // ]).concat(normalizeArr([change1.volume, change2.volume, change3.volume, change4.volume, change5.volume, change6.volume]));
+    return { inp: [change1.price, change2.price, change3.price, change4.price, change5.price, change6.price], unix: candels[candels.length - 1].close_time * 1000, time: formatDate(candels[candels.length - 1].close_time * 1000) };
+};
+// window.percentChange = percentChange;
+const prepSet = (candels_: Candel[], offset = 1) => {
+    const arrCandels = separateArr(candels_.slice(), 28);
+    const set: Set[] = [];
+    let lastInput: LastInput = { inp: [], unix: 0, price: 0 };
+    arrCandels.forEach((currentCandels, i) => {
+        const input = prepInputFromCandels(currentCandels).inp;
+        if (!arrCandels[i + offset]) {
+            const lastCandel = candels_[candels_.length - 1];
+            lastInput = { inp: input, unix: lastCandel.close_time * 1000, price: lastCandel.max }; // for predict!
+            return;
+        }
+        // const change5 = $u.mathChangedLast2Candels($u.resizeCandels(e, 10), 1);
+        // console.log('',change3);
+        const { close, max, close_time } = currentCandels[currentCandels.length - 1];
+
+        // TODO: НЕ УДАЛЯТЬ! МАГИЯ!
+        // const nextMaxClose = Math.max(arrCandels[i + 1][arrCandels[i + 1].length - 1].close, arrCandels[i + 1][arrCandels[i + 2].length - 2].close); //TODO:!!!!????
+        // ФИТЧА: берем текущую и следующую цены и из них максимальную.
+        // удобно тк если максимум равен текущей цене, то percentChange 0! Это более однозначно характеризует отношение текушщей и сл цены
+
+        // const nextMaxClose = Math.max(arrCandels[i + 1][arrCandels[i + 1].length - 1].close, close);
+
+        const arrNextOffsetPrices: number[] = [close];
+        let p = 1;
+        while (p <= offset){
+            arrNextOffsetPrices.push(arrCandels[i + p][arrCandels[i + p].length - 1].close);
+            p++;
+        }
+        const nextMaxClose = Math.max(...arrNextOffsetPrices);
+
+        const output = $u.percentChange(close, nextMaxClose);
+        set.push({
+            set: {
+                input,
+                // input: normalizeArr([change1.price, change2.price, change3.price, change4.price, change5.price]),
+                // output: [Number(output > 3)]
+                output: [output]
+            },
+            price: close,
+            unix: close_time * 1000,
+            time: formatDate(close_time * 1000)
+        });
+    });
+
+    const positive = _.shuffle(set.filter(e => e.set.output[0] > .5));
+    // const flet = _.shuffle(set.filter(e => e.set.output[0] > .45 && e.set.output[0] < .55));
+    // const flet = [];
+    const negative = _.shuffle(set.filter(e => e.set.output[0] < .5));
+    const count = Math.min(positive.length, negative.length);
+    console.log({ positive, negative, count });
+    // const filterred = _.shuffle(positive.concat(negative, flet));
+    const filterred = set;
+    // const allInputs = filterred
+    //   .map(e => e.set.input)
+    //   .reduce((s, a) => {
+    //     return s.concat(a);
+    //   }, []);
+
+    const allOutputs = filterred
+        .map(e => e.set.output[0]);
+    // const maxInput = Math.max(...allInputs);
+    // const minInput = Math.min(...allInputs);
+    const maxOut = Math.max(...allOutputs);
+    const minOut = Math.min(...allOutputs);
+    // return;
+    // console.log(changesOfPrices);
+    // const max = Math.max(...changesOfPrices);
+    // const min = Math.min(...changesOfPrices);
+    const maxPrice = Math.max(...set.map(e => e.price));
+    const minPrice = Math.min(...set.map(e => e.price));
+    set.forEach(s => {
+        // s.set.input = s.set.input.map(i => $u.normalise(i, minInput, maxInput));
+        s.set.output = s.set.output.map(o => $u.normalise(o, minOut, maxOut));
+        // s.price = $u.normalise(s.price, minPrice, maxPrice);
+    });
+    console.log('All set', set);
+    // return _.shuffle(set);
+    return { set, lastInput };
+    // const positive = _.shuffle(set.filter(e => e.input.length && e.output[0]));
+    // const negative = _.shuffle(set.filter(e => e.input.length && !e.output[0]));
+    // const count = Math.min(positive.length, negative.length);
+    // console.log(positive.length, negative.length, {count});
+    // return _.shuffle(positive.splice(-count).concat(negative.splice(-count)));
+    // return _.shuffle(positive.concat(negative));
+};
 
 export const getUrl = (market: MarketName, pairName: string, count_candels: number, interval: number) => {
     let symbol: string;
@@ -48,6 +176,12 @@ export const getUrl = (market: MarketName, pairName: string, count_candels: numb
     };
 };
 
+const normalizeArr = (data: number[]) => {
+    const max = Math.max(...data);
+    const min = Math.min(...data);
+    console.log({max, min});
+    return data.map(e => $u.normalise(e, min, max));
+};
 function mathChangedLast2Candels(candels: Candel[], round = 8) {
     const pred = candels[candels.length - 2];
     const last = candels[candels.length - 1];
@@ -63,36 +197,36 @@ function mathChangedLast2Candels(candels: Candel[], round = 8) {
 
 function resizeCandels(Candels: Candel[], crat: number) {
     const newCandels: Candel[] = [];
-	const candels: Candel[] = JSON.parse(JSON.stringify(Candels));
-	while (candels.length >= crat) {
-		const cl = candels.splice(-crat);
-		// console.log(cl[0], cl[crat-1])
-		const open_time = cl[0].open_time;
-		const close_time = cl[crat - 1].close_time;
-		const open = cl[0].open;
-		const close = cl[crat - 1].close;
-		let volume = 0;
+    const candels: Candel[] = JSON.parse(JSON.stringify(Candels));
+    while (candels.length >= crat) {
+        const cl = candels.splice(-crat);
+        // console.log(cl[0], cl[crat-1])
+        const open_time = cl[0].open_time;
+        const close_time = cl[crat - 1].close_time;
+        const open = cl[0].open;
+        const close = cl[crat - 1].close;
+        let volume = 0;
 
-		const prices: number[] = [];
-		cl.forEach(el => {
-			prices.push(el.min, el.max);
-			// console.log(volume, el.volume)
-			volume += el.volume;
-		});
+        const prices: number[] = [];
+        cl.forEach(el => {
+            prices.push(el.min, el.max);
+            // console.log(volume, el.volume)
+            volume += el.volume;
+        });
 
-		newCandels.push({
-			open_time,
-			close_time,
-			open,
-			close,
-			volume,
-			max: Math.max(...prices),
-			min: Math.min(...prices)
-		});
+        newCandels.push({
+            open_time,
+            close_time,
+            open,
+            close,
+            volume,
+            max: Math.max(...prices),
+            min: Math.min(...prices)
+        });
 
-	}
-	newCandels.reverse();
-	return newCandels;
+    }
+    newCandels.reverse();
+    return newCandels;
 }
 
 
@@ -220,8 +354,8 @@ export async function getCandels(market: MarketName, pairName: string, count_can
     const URL = getUrl(market, pairName, count_candels, interval);
     console.log(URL);
 
-    const response = await fetch(URL.url);
-    const json = await response.json();
+    const response = await axios(URL.url);
+    const json = response.data;
 
     // const json = require('./candelsMap');
 
@@ -292,14 +426,19 @@ function convertCandels(market: MarketName, Candels: any, convert: boolean, inte
 const percentChange = (a: number, b: number) => (b - a) / (a / 100);
 
 
-export default {
+const $u = {
+    prepInputFromCandels,
+    normalizeArr,
+    separateArr,
+    prepSet,
     mathChangedLast2Candels,
     resizeCandels,
     percentChange,
+    formatDate,
     normalise(numb: number, min: number, max: number) {
         let res = Number(((numb - min) / (max - min)).toFixed(5));
-        if(res>1) res=1;
-        if(res<0) res=0;
+        if (res > 1) res = 1;
+        if (res < 0) res = 0;
         return res;
     },
     getCandels,
@@ -383,3 +522,4 @@ function addZero(num: number) {
     }
     return num;
 }
+export default $u;

@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "webpack --mode development --watch",
+    "node": "tsc --project tsconfig.node.json --watch",
     "test": "echo \"Error: no test specified\" && exit 1",
     "push": "git push https://github.com/jinglescode/time-series-forecasting-tensorflowjs.git master"
   },
@@ -32,6 +33,7 @@
   "dependencies": {
     "@tensorflow/tfjs": "^3.8.0",
     "@types/underscore": "^1.11.3",
+    "axios": "^0.21.1",
     "brain.js": "^2.0.0-beta.2",
     "underscore": "^1.13.1"
   }
