@@ -6,7 +6,7 @@ import * as _ from 'underscore';
 import $u from './utils';
 
 
-export const trainNet = async ({ symbol, tf, countCandels, testCount, callback }: { symbol: string; tf: number, countCandels: number, testCount: number, callback?: (a: any) => void }) => {
+export const trainBrainNet = async ({ symbol, tf, countCandels, testCount, callback }: { symbol: string; tf: number, countCandels: number, testCount: number, callback?: (a: any) => void }) => {
     callback = callback || console.log;
     const candels = await $u.getCandels('binance', symbol, countCandels, tf); //  баржа, пара, период, TF в минутах
     const { set, lastInput } = $u.prepSet(candels);

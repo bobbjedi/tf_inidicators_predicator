@@ -1,7 +1,8 @@
-import $u, { Candel, Set, LastInput } from './utils';
+import $u, { Set, LastInput } from './utils';
 import * as _ from 'underscore';
 import * as brain from './brain';
-import { trainNet } from './network';
+import { trainBrainNet } from './network';
+// import { trainCarrotNet} from './networkNeataptic';
 
 const Plotly: any = (window as any).Plotly;
 // const brain: any = (window as any).brain;
@@ -42,13 +43,13 @@ function onClickValidate(brainNet: any, set: Set[], lastInput: LastInput, testCo
   Plotly.plot(graph_plot, [{ x: unknownTimes, y: $u.normalizeArr(unknownOutputs), name: 'Training Label (SMA)' }], { margin: { t: 0 } });
   // Plotly.plot(graph_plot, [{ x: times, y: prices.map(e => 0.5).map(p => p * 3000), name: 'Middle line' }], { margin: { t: 0 } });
 
-  document.getElementById('div_network').innerHTML = brain.utilities.toSVG(
-    brainNet,
-    {
-      height: Number(document.getElementById('div_network').offsetHeight - 10),
-      width: Number(document.getElementById('div_network').offsetWidth - 10),
-    }
-  );
+  // document.getElementById('div_network').innerHTML = brain.utilities.toSVG(
+  //   brainNet,
+  //   {
+  //     height: Number(document.getElementById('div_network').offsetHeight - 10),
+  //     width: Number(document.getElementById('div_network').offsetWidth - 10),
+  //   }
+  // );
   $('#load_validating').hide();
   // onClickPredict();
 }
@@ -81,7 +82,7 @@ async function onClickTrainModel(symbol: string, tf: number, countCandels: numbe
     callbackChar(log.iterations, { loss: log.error});
   };
 
-  const { net, set, lastInput } = await trainNet({ symbol, tf, countCandels, callback, testCount });
+  const { net, set, lastInput } = await trainBrainNet({ symbol, tf, countCandels, callback, testCount });
   console.log('NETWORK!', net);
 
   $('#div_container_validate').show();

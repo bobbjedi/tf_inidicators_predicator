@@ -354,10 +354,11 @@ export async function getCandels(market: MarketName, pairName: string, count_can
     const URL = getUrl(market, pairName, count_candels, interval);
     console.log(URL);
 
-    const response = await axios(URL.url);
-    const json = response.data;
+    // const response = await axios(URL.url);
+    // const json = response.data;
 
-    // const json = require('./candelsMap');
+    const json = require('./candelsMap').default;
+    // console.log('JSON', json);
 
     return convertCandels(market, json, URL.convert, interval, count_candels) as Candel[];
 }
