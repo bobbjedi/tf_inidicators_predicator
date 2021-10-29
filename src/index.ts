@@ -1,15 +1,14 @@
-import $u, { Candel, Set, LastInput } from './utils';
+import $u, { Set, LastInput } from './utils';
 import * as _ from 'underscore';
 import * as brain from './brain';
 import { trainNet } from './network';
 
 const Plotly: any = (window as any).Plotly;
-// const brain: any = (window as any).brain;
 type ClData = { timestamp: string, price: number, unix: number, vol: number };
 
-document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-ETH', 60, 1000, 200));
+document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-BTC', 60, 1000, 200));
 
-function onClickValidate(brainNet: any, set: Set[], lastInput: LastInput, testCount: number) {
+function onClickValidate(brainNet: brain.NeuralNetwork, set: Set[], lastInput: LastInput, testCount: number) {
 
   $('#div_container_validating').show();
   $('#load_validating').show();
@@ -36,10 +35,10 @@ function onClickValidate(brainNet: any, set: Set[], lastInput: LastInput, testCo
   console.log({ lastInput, t: $u.formatDate(lastInput.unix) });
   // const maxPrice = Math.max(...prices);
   const graph_plot = document.getElementById('div_validation_graph');
-  Plotly.newPlot(graph_plot, [{ x: times.concat($u.formatDate(lastInput.unix)), y: $u.normalizeArr(prices.concat(lastInput.price)), name: 'Actual Price' }], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: times, y: outputs, name: 'Training Label (SMA)'}], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: knownTimes, y: $u.normalizeArr(knownOutputs), name: 'Training Label (SMA)' }], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: unknownTimes, y: $u.normalizeArr(unknownOutputs), name: 'Training Label (SMA)' }], { margin: { t: 0 } });
+  Plotly.newPlot(graph_plot, [{ x: times.concat($u.formatDate(lastInput.unix)), y: $u.normalizeArr(prices.concat(lastInput.price)), name: 'Price' }], { margin: { t: 0 } });
+  Plotly.plot(graph_plot, [{ x: times, y: outputs, name: 'Outputs set'}], { margin: { t: 0 } });
+  Plotly.plot(graph_plot, [{ x: knownTimes, y: $u.normalizeArr(knownOutputs), name: 'predict Known' }], { margin: { t: 0 } });
+  Plotly.plot(graph_plot, [{ x: unknownTimes, y: $u.normalizeArr(unknownOutputs), name: 'predict Unknown' }], { margin: { t: 0 } });
   // Plotly.plot(graph_plot, [{ x: times, y: prices.map(e => 0.5).map(p => p * 3000), name: 'Middle line' }], { margin: { t: 0 } });
 
   document.getElementById('div_network').innerHTML = brain.utilities.toSVG(

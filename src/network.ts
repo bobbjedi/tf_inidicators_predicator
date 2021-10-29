@@ -31,7 +31,7 @@ export const trainNet = async ({ symbol, tf, countCandels, testCount, callback }
 
     const net = new brain.NeuralNetwork(netOptions);
 
-    const stats = net.train(trainingData, trainingOptions);
+    const stats = await net.trainAsync(trainingData, trainingOptions);
     console.log('stats:', stats);
     console.log('net:', net);
     return { net, set, lastInput };
