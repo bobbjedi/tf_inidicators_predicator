@@ -8,7 +8,7 @@ const Plotly: any = (window as any).Plotly;
 type ClData = { timestamp: string, price: number, unix: number, vol: number };
 
 document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-XRP', 60, 1000, 0));
-const isUseSavedNet = true;
+const isUseSavedNet = false;
 
 function predict(net: any, set: Set[], lastInput: LastInput) {
   $('#div_container_validating').show();
