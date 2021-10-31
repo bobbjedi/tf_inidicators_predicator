@@ -179,7 +179,7 @@ export const getUrl = (market: MarketName, pairName: string, count_candels: numb
 const normalizeArr = (data: number[]) => {
     const max = Math.max(...data);
     const min = Math.min(...data);
-    console.log({max, min});
+    // console.log({max, min});
     return data.map(e => $u.normalise(e, min, max));
 };
 function mathChangedLast2Candels(candels: Candel[], round = 8) {

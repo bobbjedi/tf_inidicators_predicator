@@ -9,18 +9,20 @@ import $u from './utils';
 export const trainNet = async ({ symbol, tf, countCandels, testCount, callback, isUseSavedNet }: { symbol: string; tf: number, countCandels: number, testCount: number, isUseSavedNet: boolean, callback?: (a: any) => void }) => {
     callback = callback || console.log;
 
-    const candels = await $u.getCandels('binance', symbol, countCandels, tf); //  баржа, пара, период, TF в минутах
-    const { set, lastInput } = $u.prepSet(candels);
-    const trainingData = _.shuffle(set.slice(0, set.length - testCount).map(s => s.set));
+    // const candels = await $u.getCandels('binance', symbol, countCandels, tf); //  баржа, пара, период, TF в минутах
+    // const { set, lastInput } = $u.prepSet(candels);
+    // const trainingData = _.shuffle(set.slice(0, set.length - testCount).map(s => s.set));
 
-    // const { trainSet, setForTest } = await getBigSet({ tf });
-    // const {set, lastInput} = setForTest;
-    // const trainingData = _.shuffle(trainSet).map(s => s.set);
+    const { trainSet, setForTest } = await getBigSet({ tf });
+    console.log('setForTest>>', setForTest)
+    const {set, lastInput} = setForTest;
+    const trainingData = _.shuffle(trainSet).map(s => s.set);
 
-    console.log('TrainingData:', trainingData);
+    console.log('TrainingData:', trainingData, {set, lastInput});
 
     const netOptions = {
-        hiddenLayers: [32, 64, 32], // array of ints for the sizes of the hidden layers in the network
+        // hiddenLayers: [16, 32, 64, 32, 16, 8], // array of ints for the sizes of the hidden layers in the network
+        hiddenLayers: [16], // array of ints for the sizes of the hidden layers in the network
     };
     const trainingOptions = {
         log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
@@ -44,7 +46,7 @@ export const trainNet = async ({ symbol, tf, countCandels, testCount, callback, 
         net.fromJSON(JSON.parse(localStorage.getItem('savedBrainNet')));
     } else {
         console.log('Start train net');
-        const stats = net.train(trainingData, trainingOptions);
+        const stats = await net.trainAsync(trainingData, trainingOptions);
         console.log('stats:', stats);
     }
 
@@ -57,11 +59,9 @@ export const trainNet = async ({ symbol, tf, countCandels, testCount, callback, 
 
 const getBigSet = async ({ tf, symbolsList }: { tf: number, symbolsList?: string[] }) => {
 
-    symbolsList = symbolsList || ['USDT-ETH', 'USDT-BNB', 'USDT-BCC', 'USDT-EOS', 'USDT-ONT', 'USDT-IOTA', 'USDT-LTC', 'USDT-ADA', 'USDT-MATIC', 'USDT-BTC'];
-    const setForTest: any = [];
-
-    // symbolsList = symbolsList || ['USDT-ETH', 'USDT-BNB', 'USDT-BCC', 'USDT-BTC'];
-    // const setForTest = await $u.prepSet(await $u.getCandels('binance', symbolsList.splice(-1)[0], 1000, tf));
+    symbolsList = symbolsList || ['USDT-BNB', 'USDT-BCC', 'USDT-EOS', 'USDT-ONT', 'USDT-IOTA', 'USDT-LTC', 'USDT-ADA', 'USDT-MATIC'];
+    const testedPair = symbolsList.splice(-1)[0]
+    const setForTest = await $u.prepSet(await $u.getCandels('binance', testedPair, 1000, tf));
 
     const trainSet = (await Promise.all(symbolsList.map(async (symbol) => {
         return (await $u.prepSet(await $u.getCandels('binance', symbol, 1000, tf))).set;
