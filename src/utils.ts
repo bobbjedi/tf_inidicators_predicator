@@ -39,11 +39,11 @@ const prepInputFromCandels = (candels: Candel[]) => {
     // const input = normalizeArr([
     //   change1.price, change2.price, change3.price, change4.price, change5.price, change6.price,
     // ]).concat(normalizeArr([change1.volume, change2.volume, change3.volume, change4.volume, change5.volume, change6.volume]));
-    return { inp: [change1.price, change2.price, change3.price, change4.price, change5.price, change6.price], unix: candels[candels.length - 1].close_time * 1000, time: formatDate(candels[candels.length - 1].close_time * 1000) };
+    return { inp: [change1.price, change2.price, change3.price, change4.price, change5.price, change6.price, change1.volume, change2.volume, change3.volume, change4.volume, change5.volume, change6.volume], unix: candels[candels.length - 1].close_time * 1000, time: formatDate(candels[candels.length - 1].close_time * 1000) };
 };
 // window.percentChange = percentChange;
 const prepSet = (candels_: Candel[], offset = 1) => {
-    const arrCandels = separateArr(candels_.slice(), 28);
+    const arrCandels = separateArr(candels_.slice(), 24);
     const set: Set[] = [];
     let lastInput: LastInput = { inp: [], unix: 0, price: 0 };
     arrCandels.forEach((currentCandels, i) => {
@@ -357,8 +357,8 @@ export async function getCandels(market: MarketName, pairName: string, count_can
     const response = await axios(URL.url);
     const json = response.data;
 
-    // const json = require('./candelsMap').default;
-    // console.log('JS:', json);
+    // const json = require('./candelsMap');
+
     return convertCandels(market, json, URL.convert, interval, count_candels) as Candel[];
 }
 
