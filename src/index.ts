@@ -1,10 +1,8 @@
-import $u, { Candel, Set, LastInput } from './utils';
+import $u, { Set, LastInput } from './utils';
 import * as _ from 'underscore';
-import * as brain from './brain';
 import { trainNet } from './network';
-
 const Plotly: any = (window as any).Plotly;
-// const brain: any = (window as any).brain;
+
 type ClData = { timestamp: string, price: number, unix: number, vol: number };
 
 document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-XRP', 60, 1000, 0));
@@ -41,58 +39,14 @@ function predict(net: any, set: Set[], lastInput: LastInput) {
   console.log('Times:', times);
   console.log('fullTimes:', fullTimes);
   console.log('signalsTimes:', signalsTimes);
+  const maxPrice = Math.max(...prices)
 
   const graph_plot = document.getElementById('div_validation_graph');
-  Plotly.newPlot(graph_plot, [{ x: fullTimes, y: $u.normalizeArr(prices), name: 'Actual Price' }], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: times, y: outputs, name: 'Calc out'}], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: fullTimes, y: predicts, name: 'Predict'}], { margin: { t: 0 } });
+  Plotly.newPlot(graph_plot, [{ x: fullTimes, y: prices, name: 'Actual Price' }], { margin: { t: 0 } });
+  Plotly.plot(graph_plot, [{ x: times, y: outputs.map(v => v * maxPrice), name: 'Calc out'}], { margin: { t: 0 } });
+  Plotly.plot(graph_plot, [{ x: fullTimes, y: predicts.map(v => v * maxPrice), name: 'Predict'}], { margin: { t: 0 } });
   Plotly.plot(graph_plot, [{ x: signalsTimes, y: signalsTimes.map(x => .5), name: 'Predict' }], { margin: { t: 0 } });
 }
-
-function onClickValidate(brainNet: any, set: Set[], lastInput: LastInput, testCount: number) {
-
-  $('#div_container_validating').show();
-  $('#load_validating').show();
-  $('#btn_validation').hide();
-
-  const times = set.map(s => s.time);
-  const prices = set.map(s => s.price);
-  const inputs = set.map(s => s.set.input);
-  const outputs = set.map(s => s.set.output[0]);
-
-  const knownTimes = times.slice();
-  const unknownOutputs = inputs.splice(-testCount).concat([lastInput.inp]).map(i => brainNet.run(i)[0]);
-  const unknownTimes = knownTimes.splice(-testCount).concat($u.formatDate(lastInput.unix));
-  const knownOutputs = inputs.map(i => brainNet.run(i)[0]);
-
-  // const knownOutputs = inputs
-
-  console.log('Inputs:', inputs);
-  console.log('Outputs:', outputs);
-  console.log('knownOutputs:', knownOutputs);
-  console.log('times:', times);
-  console.log('prices:', prices);
-
-  console.log({ lastInput, t: $u.formatDate(lastInput.unix) });
-  // const maxPrice = Math.max(...prices);
-  const graph_plot = document.getElementById('div_validation_graph');
-  Plotly.newPlot(graph_plot, [{ x: times.concat($u.formatDate(lastInput.unix)), y: $u.normalizeArr(prices.concat(lastInput.price)), name: 'Actual Price' }], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: times, y: outputs, name: 'Training Label (SMA)'}], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: knownTimes, y: $u.normalizeArr(knownOutputs), name: 'Training Label (SMA)' }], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: unknownTimes, y: $u.normalizeArr(unknownOutputs), name: 'Training Label (SMA)' }], { margin: { t: 0 } });
-  // Plotly.plot(graph_plot, [{ x: times, y: prices.map(e => 0.5).map(p => p * 3000), name: 'Middle line' }], { margin: { t: 0 } });
-
-  document.getElementById('div_network').innerHTML = brain.utilities.toSVG(
-    brainNet,
-    {
-      height: Number(document.getElementById('div_network').offsetHeight - 10),
-      width: Number(document.getElementById('div_network').offsetWidth - 10),
-    }
-  );
-  $('#load_validating').hide();
-  // onClickPredict();
-}
-
 
 async function onClickTrainModel(symbol: string, tf: number, countCandels: number, testCount: number) {
 

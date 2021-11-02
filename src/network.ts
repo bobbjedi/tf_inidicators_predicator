@@ -35,7 +35,7 @@ export const trainNet = async ({ symbol, tf, countCandels, testCount, callback, 
         momentum: 0.4, // scales with next layer's change value --> number between 0 and 1
         iterations: 5000,
         callback,
-        callbackPeriod: 100, // the number of iterations through the training data between callback calls --> number greater than 0
+        callbackPeriod: 10, // the number of iterations through the training data between callback calls --> number greater than 0
         errorThresh: 0.005, // the acceptable error percentage from training data --> number between 0 and 1
         timeout: Infinity, // the max number of milliseconds to train for --> number greater than 0
     };
