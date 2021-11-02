@@ -35,7 +35,7 @@ const prepInputFromCandels = (candels: Candel[]) => {
     const change4 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 8), 1);
     const change5 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 10), 1);
     const change6 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 12), 1);
-    const change7 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 14), 1);
+    // const change7 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 14), 1);
     // const input = normalizeArr([
     //   change1.price, change2.price, change3.price, change4.price, change5.price, change6.price,
     // ]).concat(normalizeArr([change1.volume, change2.volume, change3.volume, change4.volume, change5.volume, change6.volume]));
