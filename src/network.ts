@@ -4,6 +4,7 @@ import * as brain from './brain';
 // import * as brain from 'brain.js';
 import * as _ from 'underscore';
 import $u from './utils';
+import axios from 'axios';
 
 
 export const trainNet = async ({ symbol, tf, countCandels, testCount, callback, isUseSavedNet }: { symbol: string; tf: number, countCandels: number, testCount: number, isUseSavedNet: boolean, callback?: (a: any) => void }) => {
@@ -62,8 +63,13 @@ export const trainNet = async ({ symbol, tf, countCandels, testCount, callback, 
 };
 
 const getBigSet = async ({ tf, symbolsList }: { tf: number, symbolsList?: string[] }) => {
-
-    symbolsList = symbolsList || ['USDT-BNB', 'USDT-BCC', 'USDT-EOS', 'USDT-ONT', 'USDT-IOTA', 'USDT-LTC', 'USDT-ADA', 'USDT-MATIC'];
+    // symbolsList = symbolsList || ['USDT-BNB', 'USDT-BCC', 'USDT-EOS', 'USDT-ONT', 'USDT-IOTA', 'USDT-LTC', 'USDT-ADA', 'USDT-MATIC'];
+    symbolsList = symbolsList || (await axios('https://api.binance.com/api/v3/ticker/24hr')).data
+    .filter( (t: any) => (t.symbol as string).endsWith('USDT'))
+    .sort((a:any, b:any)=> +a.quoteVolume - b.quoteVolume)
+    .splice(-10)
+    .map((t: any) => t.symbol = 'USDT-' + t.symbol.replace('USDT', ''));
+    console.log(symbolsList)
     const testedPair = symbolsList.splice(-1)[0]
     // const testedPair = symbolsList[0]
     const setForTest = await $u.prepSet(await $u.getCandels('binance', testedPair, 1000, tf));
