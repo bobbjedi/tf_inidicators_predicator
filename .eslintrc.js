@@ -58,6 +58,7 @@ module.exports = {
     'node': true
   },
   'globals': {
+    $: true,
     'globalThis': false, // means it is not writeable
   }
 }

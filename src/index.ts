@@ -1,144 +1,140 @@
-import $u, { Set, LastInput } from './utils';
-import * as _ from 'underscore';
-import { trainNet } from './network';
-const Plotly: any = (window as any).Plotly;
+import $u, { Set, LastInput } from './utils'
+import * as _ from 'underscore'
+import { trainNet } from './network'
+const Plotly: any = (window as any).Plotly
 
 type ClData = { timestamp: string, price: number, unix: number, vol: number };
 
-document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-XRP', 60, 1000, 0));
-const isUseSavedNet = false;
+document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-XRP', 60, 1000, 0))
+const isUseSavedNet = false
 
-function predict(net: any, set: Set[], lastInput: LastInput) {
-  $('#div_container_validating').show();
-  $('#load_validating').show();
-  $('#btn_validation').hide();
+function predict (net: any, set: Set[], lastInput: LastInput) {
+  $('#div_container_validating').show()
+  $('#load_validating').show()
+  $('#btn_validation').hide()
 
-  const times = set.map(s => s.time);
-  const prices = set.map(s => s.price).concat(lastInput.price);
-  const inputs = set.map(s => s.set.input);
-  const outputs = set.map(s => s.set.output[0]);
+  const times = set.map(s => s.time)
+  const prices = set.map(s => s.price).concat(lastInput.price)
+  const inputs = set.map(s => s.set.input)
+  const outputs = set.map(s => s.set.output[0])
   // const predicts = inputs.concat(lastInput.inp).map(i => net.run(i)[0]).splice(-prices.length);
-  const predicts = inputs.map(i => net.run(i)[0]);
-  predicts.push(net.run(lastInput.inp)[0]);
-  const fullTimes = times.slice();
-  fullTimes.push($u.formatDate(lastInput.unix));
+  const predicts = inputs.map(i => net.run(i)[0])
+  predicts.push(net.run(lastInput.inp)[0])
+  const fullTimes = times.slice()
+  fullTimes.push($u.formatDate(lastInput.unix))
 
-  const signalsTimes: string[] = [];
+  const signalsTimes: string[] = []
   for (let i = 1; i < times.length; i++) {
     if (
       // predicts[i] > 0.2 && outputs[i] > 0.3 // both more that 0.5
       predicts[i - 1] < 0.2 && outputs[i - 1] < 0.2 // both pred was low
       && predicts[i] > 0.5 // next predict low again
     ) {
-      signalsTimes.push(times[i]);
+      signalsTimes.push(times[i])
     }
   }
-  console.log('prices:', prices);
-  console.log('predicts:', predicts );
-  console.log('outputs:', outputs);
-  console.log('Times:', times);
-  console.log('fullTimes:', fullTimes);
-  console.log('signalsTimes:', signalsTimes);
+  console.log('prices:', prices)
+  console.log('predicts:', predicts)
+  console.log('outputs:', outputs)
+  console.log('Times:', times)
+  console.log('fullTimes:', fullTimes)
+  console.log('signalsTimes:', signalsTimes)
   const maxPrice = Math.max(...prices)
 
-  const graph_plot = document.getElementById('div_validation_graph');
-  Plotly.newPlot(graph_plot, [{ x: fullTimes, y: prices, name: 'Actual Price' }], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: times, y: outputs.map(v => v * maxPrice), name: 'Calc out'}], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: fullTimes, y: predicts.map(v => v * maxPrice), name: 'Predict'}], { margin: { t: 0 } });
-  Plotly.plot(graph_plot, [{ x: signalsTimes, y: signalsTimes.map(x => .5), name: 'Predict' }], { margin: { t: 0 } });
+  const graph_plot = document.getElementById('div_validation_graph')
+  Plotly.newPlot(graph_plot, [{ x: fullTimes, y: prices, name: 'Actual Price' }], { margin: { t: 0 } })
+  Plotly.plot(graph_plot, [{ x: times, y: outputs.map(v => v * maxPrice), name: 'Calc out' }], { margin: { t: 0 } })
+  Plotly.plot(graph_plot, [{ x: fullTimes, y: predicts.map(v => v * maxPrice), name: 'Predict' }], { margin: { t: 0 } })
+  Plotly.plot(graph_plot, [{ x: signalsTimes, y: signalsTimes.map(x => .5), name: 'Predict' }], { margin: { t: 0 } })
 }
 
-async function onClickTrainModel(symbol: string, tf: number, countCandels: number, testCount: number) {
+async function onClickTrainModel (symbol: string, tf: number, countCandels: number, testCount: number) {
 
-  const epoch_loss: string[] = [];
-  $('#div_container_training').show();
-  $('#btn_draw_trainmodel').hide();
+  const epoch_loss: string[] = []
+  $('#div_container_training').show()
+  $('#btn_draw_trainmodel').hide()
 
-  document.getElementById('div_traininglog').innerHTML = '';
-  const n_epochs = 99;
+  document.getElementById('div_traininglog').innerHTML = ''
+  const n_epochs = 99
   const callbackChar = (epoch: number, log: any) => {
-    let logHtml = document.getElementById('div_traininglog').innerHTML;
-    logHtml = '<div>Epoch: ' + (epoch + 1) + ' (of '+ n_epochs +')' +
+    let logHtml = document.getElementById('div_traininglog').innerHTML
+    logHtml = '<div>Epoch: ' + (epoch + 1) + ' (of ' + n_epochs + ')' +
       ', loss: ' + log.loss +
-      '</div>' + logHtml;
+      '</div>' + logHtml
 
-    epoch_loss.push(log.loss);
-    document.getElementById('div_traininglog').innerHTML = logHtml;
-    document.getElementById('div_training_progressbar').style.width = Math.ceil(((epoch + 1) * (100 / n_epochs))).toString() + '%';
-    document.getElementById('div_training_progressbar').innerHTML = Math.ceil(((epoch + 1) * (100 / n_epochs))).toString() + '%';
+    epoch_loss.push(log.loss)
+    document.getElementById('div_traininglog').innerHTML = logHtml
+    document.getElementById('div_training_progressbar').style.width = Math.ceil(((epoch + 1) * (100 / n_epochs))).toString() + '%'
+    document.getElementById('div_training_progressbar').innerHTML = Math.ceil(((epoch + 1) * (100 / n_epochs))).toString() + '%'
 
-    const graph_plot = document.getElementById('div_linegraph_trainloss');
-    Plotly.newPlot( graph_plot, [{x: Array.from({length: epoch_loss.length}, (v, k) => k+1), y: epoch_loss, name: 'Loss' }], { margin: { t: 0 } } );
-  };
+    const graph_plot = document.getElementById('div_linegraph_trainloss')
+    Plotly.newPlot(graph_plot, [{ x: Array.from({ length: epoch_loss.length }, (v, k) => k + 1), y: epoch_loss, name: 'Loss' }], { margin: { t: 0 } })
+  }
 
   const callback = async (log: { iterations: number, error: number}) => {
-    callbackChar(log.iterations, { loss: log.error});
-  };
+    callbackChar(log.iterations, { loss: log.error })
+  }
 
-  const { net, set, lastInput } = await trainNet({ symbol, tf, countCandels, callback, testCount, isUseSavedNet });
-  console.log('NETWORK!', net);
+  const { net, set, lastInput } = await trainNet({ symbol, tf, countCandels, callback, testCount, isUseSavedNet })
+  console.log('NETWORK!', net)
 
-  $('#div_container_validate').show();
-  $('#div_container_predict').show();
+  $('#div_container_validate').show()
+  $('#div_container_predict').show()
 
   // onClickValidate(net, set, lastInput, testCount);
-  predict(net, set, lastInput);
+  predict(net, set, lastInput)
 }
 
 type SmaData = {
   set: ClData[];
   avg: number;
 };
-function ComputeSMA(data: ClData[], period: number): SmaData[] {
-  const maxPrice = Math.max(...data.map(e => e.price));
-  const minPrice = Math.min(...data.map(e => e.price));
+function ComputeSMA (data: ClData[], period: number): SmaData[] {
+  const maxPrice = Math.max(...data.map(e => e.price))
+  const minPrice = Math.min(...data.map(e => e.price))
 
-  const maxVol = Math.max(...data.map(e => e.vol));
-  const minVol = Math.min(...data.map(e => e.vol));
+  const maxVol = Math.max(...data.map(e => e.vol))
+  const minVol = Math.min(...data.map(e => e.vol))
 
-  console.log({maxPrice, minPrice, maxVol, minVol});
+  console.log({ maxPrice, minPrice, maxVol, minVol })
   data.forEach(e => {
-    e.price = $u.normalise(e.price, minPrice, maxPrice);
-    e.vol = $u.normalise(e.vol, minVol, maxVol);
-  });
+    e.price = $u.normalise(e.price, minPrice, maxPrice)
+    e.vol = $u.normalise(e.vol, minVol, maxVol)
+  })
 
-  const offset = 0;
-  const r_avgs: any[] = [];
+  const offset = 0
+  const r_avgs: any[] = []
   //  avg_prev = 0;
   for (let i = offset; i <= data.length - period; i++) {
-    let curr_avg = 0.00;
-    const t = i + period;
-    for (let k = i; k < t && k <= data.length; k++){
-      curr_avg += data[k]['price'] / period;
+    let curr_avg = 0.00
+    const t = i + period
+    for (let k = i; k < t && k <= data.length; k++) {
+      curr_avg += data[k]['price'] / period
     }
     // r_avgs.push({ set: data.slice(i - offset, i + window_size - offset), avg: curr_avg });
-    data[i + period + offset] && r_avgs.push({ set: data.slice(i, i + period), avg: data[i + period + offset].price });
+    data[i + period + offset] && r_avgs.push({ set: data.slice(i, i + period), avg: data[i + period + offset].price })
     // avg_prev = curr_avg;
   }
-  return r_avgs;
+  return r_avgs
 }
-
 
 // https://system-fx.ru/wp-content/uploads/2013/08/PVT_1-641x400.png
 
-
 const normmaliseClData = (data: ClData[]) => {
-  const data_: ClData[] = JSON.parse(JSON.stringify(data));
-  const maxPrice = Math.max(...data_.map(e => e.price));
-  const minPrice = Math.min(...data_.map(e => e.price));
+  const data_: ClData[] = JSON.parse(JSON.stringify(data))
+  const maxPrice = Math.max(...data_.map(e => e.price))
+  const minPrice = Math.min(...data_.map(e => e.price))
 
-  const maxVol = Math.max(...data_.map(e => e.vol));
-  const minVol = Math.min(...data_.map(e => e.vol));
+  const maxVol = Math.max(...data_.map(e => e.vol))
+  const minVol = Math.min(...data_.map(e => e.vol))
 
-  console.log({maxPrice, minPrice, maxVol, minVol});
+  console.log({ maxPrice, minPrice, maxVol, minVol })
   data_.forEach(e => {
-    e.price = $u.normalise(e.price, minPrice, maxPrice);
-    e.vol = $u.normalise(e.vol, minVol, maxVol);
-  });
-  return data_;
-};
-
-
+    e.price = $u.normalise(e.price, minPrice, maxPrice)
+    e.vol = $u.normalise(e.vol, minVol, maxVol)
+  })
+  return data_
+}
 
 // const prepSetByOutputs = (set: Set[]) => {
 //   const inputs = separateArr(set.map(s => s.set.output[0]), 10);
@@ -191,7 +187,6 @@ const normmaliseClData = (data: ClData[]) => {
 
 // }
 
-
 // const prepSet2 = (indicData: IndicData, period: number, offset = 1) => {
 //   const { prices, indic } = indicData;
 //   const indics = separateArr(indic, period).splice(-unSeenCount);
@@ -220,4 +215,4 @@ const normmaliseClData = (data: ClData[]) => {
 //   return _.shuffle(positive.splice(-count).concat(negative.splice(-count)));
 // };
 
-//////
+// ////
