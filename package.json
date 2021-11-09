@@ -36,6 +36,7 @@
     "@types/underscore": "^1.11.3",
     "axios": "^0.21.1",
     "brain.js": "^2.0.0-beta.2",
+    "neataptic": "^1.4.7",
     "underscore": "^1.13.1"
   }
 }

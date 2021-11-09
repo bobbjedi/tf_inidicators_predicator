@@ -6,7 +6,8 @@ import * as _ from 'underscore';
 import $u from './utils';
 import axios from 'axios';
 
-
+const neataptic = (window as any).neataptic
+console.log('neataptic', neataptic)
 export const trainNet = async ({ symbol, tf, countCandels, testCount, callback, isUseSavedNet }: { symbol: string; tf: number, countCandels: number, testCount: number, isUseSavedNet: boolean, callback?: (a: any) => void }) => {
     callback = callback || console.log;
 
@@ -25,35 +26,53 @@ export const trainNet = async ({ symbol, tf, countCandels, testCount, callback, 
     
     console.log('TrainingData:', trainingData_, {set, lastInput});
 
-    const netOptions = {
-        hiddenLayers: [24, 32, 8, 4], // array of ints for the sizes of the hidden layers in the network
-        // hiddenLayers: [16, 32, 8], // array of ints for the sizes of the hidden layers in the network
-    };
-    const trainingOptions = {
-        log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
-        logPeriod: 100, // iterations between logging out --> number greater than 0
-        learningRate: 0.4, // scales with delta to effect training rate --> number between 0 and 1
-        momentum: 0.4, // scales with next layer's change value --> number between 0 and 1
-        iterations: 5000,
-        callback,
-        callbackPeriod: 10, // the number of iterations through the training data between callback calls --> number greater than 0
-        errorThresh: 0.005, // the acceptable error percentage from training data --> number between 0 and 1
-        timeout: Infinity, // the max number of milliseconds to train for --> number greater than 0
-    };
-
-
+    // const netOptions = {
+    //     hiddenLayers: [24, 32, 8, 4], // array of ints for the sizes of the hidden layers in the network
+    //     // hiddenLayers: [16, 32, 8], // array of ints for the sizes of the hidden layers in the network
+    // };
+    // const trainingOptions = {
+    //     log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
+    //     logPeriod: 100, // iterations between logging out --> number greater than 0
+    //     learningRate: 0.4, // scales with delta to effect training rate --> number between 0 and 1
+    //     momentum: 0.4, // scales with next layer's change value --> number between 0 and 1
+    //     iterations: 5000,
+    //     callback,
+    //     callbackPeriod: 10, // the number of iterations through the training data between callback calls --> number greater than 0
+    //     errorThresh: 0.005, // the acceptable error percentage from training data --> number between 0 and 1
+    //     timeout: Infinity, // the max number of milliseconds to train for --> number greater than 0
+    // };
+    let iter = 0 
+    const net = new neataptic.architect.Perceptron(trainingData_[0].input.length, 8, 4, 1);
+    console.log('Stat', await net.evolve(trainingData_, {
+        mutation: neataptic.methods.mutation.ALL,
+        equal: true,
+        popsize: 100,
+        shuffle: true,
+        elitism: 10, //%
+        log: 100,
+        schedule: {
+            function(r: any){ 
+            console.log(r)
+            callback({ iterations: iter++, error: r.error})
+            }, iterations: 10
+        },
+        error: 0.003,
+        iterations: 1000,
+        mutationRate: 0.5
+      }));
+      net.run = (input: number[]) => net.activate(input)
     // const crossValidate = new brain.CrossValidate(brain.NeuralNetwork, netOptions);
     // const stats = crossValidate.train(trainingData, trainingOptions);
     // const net = crossValidate.toNeuralNetwork();
-    const net = new brain.NeuralNetwork(netOptions);
-    if (isUseSavedNet) {
-        console.log('USE SAVED NET BRAIN.JS!');
-        net.fromJSON(JSON.parse(localStorage.getItem('savedBrainNet')));
-    } else {
-        console.log('Start train net');
-        const stats = await net.trainAsync(trainingData_, trainingOptions);
-        console.log('stats:', stats);
-    }
+    // const net = new brain.NeuralNetwork(netOptions);
+    // if (isUseSavedNet) {
+    //     console.log('USE SAVED NET BRAIN.JS!');
+    //     net.fromJSON(JSON.parse(localStorage.getItem('savedBrainNet')));
+    // } else {
+    //     console.log('Start train net');
+    //     const stats = await net.trainAsync(trainingData_, trainingOptions);
+    //     console.log('stats:', stats);
+    // }
 
     console.log('net:', net);
 
