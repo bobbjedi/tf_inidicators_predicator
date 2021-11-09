@@ -9341,6 +9341,7 @@ ${innerFunctionsSwitch.join('\n')}
         }), width, height);
     }
     function checkSizes(sizes, labels) {
+        console.log({sizes})
         if (!sizes) {
             throw new Error('sizes not set');
         }

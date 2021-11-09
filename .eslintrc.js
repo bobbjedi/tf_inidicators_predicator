@@ -22,6 +22,7 @@ module.exports = {
   ],
 
   'rules': {
+    'space-before-function-paren': ['error', 'always'], // отсупы вокруг и внутри функций и методов
     'no-trailing-spaces': 'error',
     'spaced-comment': ['error', 'always'],
     'no-multiple-empty-lines': ['error', { 'max': 1, 'maxEOF': 0 }],
@@ -36,13 +37,6 @@ module.exports = {
     'eqeqeq': 'error', // обязательно === и !== (нельзя == и !=)
     'no-eq-null': 'error', // обязательно === и !== (нельзя == и !=) но тоько в отношении null
     'curly': 'error', // проверка шаблонов `${name}`
-    'space-before-function-paren': [ // отступ до и после function
-      'error', {
-        'anonymous': 'always',
-        'named': 'always',
-        'asyncArrow': 'ignore'
-      }
-    ],
     'key-spacing': ['error', { 'mode': 'strict' }], // оформление обЪекта
     'eol-last': ['error', 'never'],
     'space-in-parens': ['error', 'never'], // запрет отступов ( a,b)
@@ -51,7 +45,10 @@ module.exports = {
     'no-multi-spaces': 'error', // запрет лишних пробелов var a   = 2
     'no-sparse-arrays': 'warn', // предупреждение при дырке в массиве
     'no-mixed-spaces-and-tabs': 'error', // нельзя миксовать табы и пробелы
-    'keyword-spacing': ['error', { 'after': true }],
+    // "@typescript-eslint/indent": ["error"]
+    'keyword-spacing': ['error', { 'after': true, 'before': true }],
+    'space-before-blocks': 'error',
+    'block-spacing': 'error',
     'comma-spacing': ['error', { 'before': false, 'after': true }], // отступ после запятой, а перед нельзя
     'no-undef': 'error',
     'array-callback-return': 'error', // коллбек методов массива типа arr.map arr.filter должны иметь return в коллбеке
@@ -61,6 +58,7 @@ module.exports = {
     'node': true
   },
   'globals': {
+    $: true,
     'globalThis': false, // means it is not writeable
   }
 }
