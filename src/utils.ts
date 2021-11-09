@@ -10,6 +10,7 @@ export type Set = {
     set: {
         input: number[];
         output: number[];
+        v?: number
     },
     price: number;
     unix: number;
@@ -33,41 +34,30 @@ const prepInputFromCandels = (candels: Candel[]) => {
   return { inp, unix: candels[candels.length - 1].close_time * 1000, time: formatDate(candels[candels.length - 1].close_time * 1000) }
 }
 // window.percentChange = percentChange;
-const prepSet = (candels_: Candel[], offset = 1) => {
-  const arrCandels = separateArr(candels_.slice(), 24)
+const period = 14
+const prepSet = (candels_: Candel[]) => {
+  const candelsToChanges = candels_.map((c, i) => {
+    return candels_[i + 1] ? $u.percentChange(c.close, candels_[i + 1].close) : Infinity
+  })
+  console.log('candelsToChanges', candelsToChanges)
+  candelsToChanges.splice(-1)
+  const inputs = separateArr(candelsToChanges, period)
+  console.log('inputs', inputs)
+  // const arrCandels = separateArr(candels_.slice(), 24)
   const set: Set[] = []
   let lastInput: LastInput = { inp: [], unix: 0, price: 0 }
-  arrCandels.forEach((currentCandels, i) => {
-    const input = prepInputFromCandels(currentCandels).inp
-    if (!arrCandels[i + offset]) {
-      const lastCandel = candels_[candels_.length - 1]
-      lastInput = { inp: input, unix: lastCandel.close_time * 1000, price: lastCandel.max } // for predict!
+  inputs.forEach((input, i) => {
+    const { close, close_time } = candels_[inputs[i + 1] ? i + period + 1 : i + period]
+    if (!inputs[i + 1]) {
+      lastInput = { inp: input, price: close, unix: close_time }
       return
     }
-    // const change5 = $u.mathChangedLast2Candels($u.resizeCandels(e, 10), 1);
-    // console.log('',change3);
-    const { close, close_time } = currentCandels[currentCandels.length - 1]
-
-    // TODO: НЕ УДАЛЯТЬ! МАГИЯ!
-    // const nextMaxClose = Math.max(arrCandels[i + 1][arrCandels[i + 1].length - 1].close, arrCandels[i + 1][arrCandels[i + 2].length - 2].close); //TODO:!!!!????
-    // ФИТЧА: берем текущую и следующую цены и из них максимальную.
-    // удобно тк если максимум равен текущей цене, то percentChange 0! Это более однозначно характеризует отношение текушщей и сл цены
-
-    const nextMaxClose = Math.max(arrCandels[i + 1][arrCandels[i + 1].length - 1].close, close);
-
-    // const arrNextOffsetPrices: number[] = [close]
-    // let p = 1
-    // while (p <= offset) {
-    //   arrNextOffsetPrices.push(arrCandels[i + p][arrCandels[i + p].length - 1].close)
-    //   p++
-    // }
-    // const nextMaxClose = Math.max(...arrNextOffsetPrices)
-
-    const output = $u.percentChange(close, nextMaxClose)
+    const output = inputs[i + 1][period - 1]
     set.push({
       set: {
         input,
-        output: [output]
+        output: [output],
+        v: output
       },
       price: close,
       unix: close_time * 1000,
@@ -75,12 +65,12 @@ const prepSet = (candels_: Candel[], offset = 1) => {
     })
   })
 
-  const positive = _.shuffle(set.filter(e => e.set.output[0] > .5))
+  // const positive = _.shuffle(set.filter(e => e.set.output[0] > .5))
   // const flet = _.shuffle(set.filter(e => e.set.output[0] > .45 && e.set.output[0] < .55));
   // const flet = [];
-  const negative = _.shuffle(set.filter(e => e.set.output[0] < .5))
-  const count = Math.min(positive.length, negative.length)
-  console.log({ positive, negative, count })
+  // const negative = _.shuffle(set.filter(e => e.set.output[0] < .5))
+  // const count = Math.min(positive.length, negative.length)
+  // console.log({ positive, negative, count })
   // const filterred = _.shuffle(positive.concat(negative, flet));
   const filterred = set
   // const allInputs = filterred

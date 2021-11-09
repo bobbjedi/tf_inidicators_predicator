@@ -67,6 +67,7 @@ const getBigSet = async ({ tf, symbolsList }: { tf: number, symbolsList?: string
     .splice(-5)
     .map((t: any) => t.symbol = 'USDT-' + t.symbol.replace('USDT', ''))
   console.log(symbolsList)
+  // symbolsList.splice(-1) // rm BTC
   const testedPair = symbolsList.splice(-1)[0]
   // const testedPair = symbolsList[0]
   console.log('Training List:', symbolsList)
