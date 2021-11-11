@@ -1,5 +1,8 @@
 import * as _ from 'underscore'
 import axios from 'axios'
+import prepInput from './prepInput'
+// import { SMA } from '@debut/indicators'
+// const sma = new SMA(4)
 type MarketName = 'binance' | 'bittrex' | 'poloniex';
 
 function formatDate (date: number) {
@@ -26,33 +29,20 @@ const separateArr = <Type>(arr: Type[], period: number) => {
   }
   return inputs
 }
-const prepInputFromCandels = (candels: Candel[]) => {
-  const change1 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 2), 1)
-  const change2 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 4), 1)
-  const change3 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 6), 1)
-  const change4 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 8), 1)
-  const change5 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 10), 1)
-  const change6 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 12), 1)
-  const change7 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 14), 1)
-  // const input = normalizeArr([
-  //   change1.price, change2.price, change3.price, change4.price, change5.price, change6.price,
-  // ]).concat(normalizeArr([change1.volume, change2.volume, change3.volume, change4.volume, change5.volume, change6.volume]));
-  return { inp: [change1.price, change2.price, change3.price, change4.price, change5.price, change6.price, change1.volume, change2.volume, change3.volume, change4.volume, change5.volume, change6.volume], unix: candels[candels.length - 1].close_time * 1000, time: formatDate(candels[candels.length - 1].close_time * 1000) }
-}
+
 // window.percentChange = percentChange;
-const prepSet = (candels_: Candel[], offset = 5) => {
-  const arrCandels = separateArr(candels_.slice(), 28)
+const prepSet = (candels_: Candel[], period = 28, offset = 1) => {
+  const arrCandels = separateArr(candels_.slice(), period)
   const set: Set[] = []
   let lastInput: LastInput = { inp: [], unix: 0, price: 0 }
   arrCandels.forEach((currentCandels, i) => {
-    const input = prepInputFromCandels(currentCandels).inp
+    const input = prepInput(currentCandels, period)
+    // console.log(input)
     if (!arrCandels[i + offset]) {
       const lastCandel = candels_[candels_.length - 1]
       lastInput = { inp: input, unix: lastCandel.close_time * 1000, price: lastCandel.max } // for predict!
       return
     }
-    // const change5 = $u.mathChangedLast2Candels($u.resizeCandels(e, 10), 1);
-    // console.log('',change3);
     const { close, close_time } = currentCandels[currentCandels.length - 1]
 
     // TODO: НЕ УДАЛЯТЬ! МАГИЯ!
@@ -74,8 +64,6 @@ const prepSet = (candels_: Candel[], offset = 5) => {
     set.push({
       set: {
         input,
-        // input: normalizeArr([change1.price, change2.price, change3.price, change4.price, change5.price]),
-        // output: [Number(output > 3)]
         output: [output]
       },
       price: close,
@@ -85,45 +73,19 @@ const prepSet = (candels_: Candel[], offset = 5) => {
   })
 
   const positive = _.shuffle(set.filter(e => e.set.output[0] > .5))
-  // const flet = _.shuffle(set.filter(e => e.set.output[0] > .45 && e.set.output[0] < .55));
-  // const flet = [];
   const negative = _.shuffle(set.filter(e => e.set.output[0] < .5))
   const count = Math.min(positive.length, negative.length)
   console.log({ positive, negative, count })
-  // const filterred = _.shuffle(positive.concat(negative, flet));
   const filterred = set
-  // const allInputs = filterred
-  //   .map(e => e.set.input)
-  //   .reduce((s, a) => {
-  //     return s.concat(a);
-  //   }, []);
-
   const allOutputs = filterred
     .map(e => e.set.output[0])
-    // const maxInput = Math.max(...allInputs);
-    // const minInput = Math.min(...allInputs);
   const maxOut = Math.max(...allOutputs)
   const minOut = Math.min(...allOutputs)
-  // return;
-  // console.log(changesOfPrices);
-  // const max = Math.max(...changesOfPrices);
-  // const min = Math.min(...changesOfPrices);
-  const maxPrice = Math.max(...set.map(e => e.price))
-  const minPrice = Math.min(...set.map(e => e.price))
   set.forEach(s => {
-    // s.set.input = s.set.input.map(i => $u.normalise(i, minInput, maxInput));
     s.set.output = s.set.output.map(o => $u.normalise(o, minOut, maxOut))
-    // s.price = $u.normalise(s.price, minPrice, maxPrice);
   })
   console.log('All set', set)
-  // return _.shuffle(set);
   return { set, lastInput }
-  // const positive = _.shuffle(set.filter(e => e.input.length && e.output[0]));
-  // const negative = _.shuffle(set.filter(e => e.input.length && !e.output[0]));
-  // const count = Math.min(positive.length, negative.length);
-  // console.log(positive.length, negative.length, {count});
-  // return _.shuffle(positive.splice(-count).concat(negative.splice(-count)));
-  // return _.shuffle(positive.concat(negative));
 }
 
 export const getUrl = (market: MarketName, pairName: string, count_candels: number, interval: number, endTime = 0) => {
@@ -138,7 +100,6 @@ export const getUrl = (market: MarketName, pairName: string, count_candels: numb
     symbol = pairName.replace('-', '_')
   }
 
-  // console.log(pairName, symbol);
   let url
   let Interval = getInterval(market, interval)
   let convert = false
@@ -421,7 +382,6 @@ function convertCandels (market: MarketName, Candels: any, convert: boolean, int
 const percentChange = (a: number, b: number) => (b - a) / (a / 100)
 
 const $u = {
-  prepInputFromCandels,
   normalizeArr,
   separateArr,
   prepSet,

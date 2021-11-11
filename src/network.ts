@@ -1,7 +1,4 @@
-// tslint:disable-next-line: no-var-requires
-// const brain = require('./brain');
 import * as brain from './brain'
-// import * as brain from 'brain.js';
 import * as _ from 'underscore'
 import $u from './utils'
 
@@ -9,16 +6,24 @@ export const trainNet = async ({ symbol, tf, countCandels, testCount, callback }
   callback = callback || console.log
   let candels = await $u.getCandels('binance', symbol, countCandels, tf) //  баржа, пара, период, TF в минутах
   let i = 1
-  while (i++ < 5) {
+  while (i++ < 3) {
     console.log('End:', candels[0].open_time)
     candels = (await $u.getCandels('binance', symbol, countCandels, tf, candels[0].open_time * 1000)).concat(candels)
   }
 
   const { set, lastInput } = $u.prepSet(candels)
-
   const trainingData = _.shuffle(set.slice(0, set.length - testCount).map(s => s.set))
+
+  // const positive = allTrainingData.filter(s => s.output[0] > .3)
+  // const flet = allTrainingData.filter(s => s.output[0] <= .3)
+  // const negative = allTrainingData.filter(s => s.output[0] === 0)
+  // const count = Math.min(positive.length, negative.length, flet.length)
+
+  // const trainingData = _.shuffle(positive.splice(-count).concat(negative.splice(-count), flet.splice(-count)))
+  // console.log(count, allTrainingData, trainingData)
+
   const netOptions = {
-    hiddenLayers: [24, 8], // array of ints for the sizes of the hidden layers in the network
+    hiddenLayers: [24, 32, 8], // array of ints for the sizes of the hidden layers in the network
   }
   const trainingOptions = {
     log: true, // true to use console.log, when a function is supplied it is used --> Either true or a function
