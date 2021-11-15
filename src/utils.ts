@@ -223,7 +223,7 @@ function fiveTo15 (array: any[]) {
   return newarr
 }
 
-function getInterval (market: MarketName, tf: number) {
+export const getInterval = (market: MarketName, tf: number) => {
   switch (market) {
 
   case ('bittrex'):

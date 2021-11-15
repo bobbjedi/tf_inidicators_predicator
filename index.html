@@ -53,48 +53,7 @@
 
     <div class="card" id="div_train">
       <div class="card-content">
-        <span class="card-title">Train Neural Network</span>
-        <div id="div_container_train" style="display:none">
-          <div class="row">
-            <div class="col s12">
-              <p>
-                <!-- [how to use, what you want your reader to do after you end, as simple and obvious] -->
-                You may tweak the hyperparameters and then hit the <i>Begin Training Model</i> button to train the model.
-              </p>
-            </div>
-            <div class="col s6">
-              <div class="input-field col s12">
-                <label for="input_trainingsize">Training Dataset Size (%)</label>
-                <input type="number" id="input_trainingsize" placeholder="a number between (1-99)" value="90">
-              </div>
-            </div>
-            <div class="col s6">
-              <div class="input-field col s12">
-                <label for="input_epochs">Epochs</label>
-                <input type="number" id="input_epochs" placeholder="a number" value="15">
-              </div>
-            </div>
-          </div>
-          <div class="row">
-            <div class="col s6">
-              <div class="input-field col s12">
-                <label for="input_learningrate">Learning Rate</label>
-                <input type="number" id="input_learningrate" placeholder="a decimal" value="0.01">
-                <small class="form-text text-muted">Typically range between 0.01 and 0.1</small>
-              </div>
-            </div>
-            <div class="col s6">
-              <div class="input-field col s12">
-                <label for="input_hiddenlayers">Hidden LSTM Layers</label>
-                <input type="number" id="input_hiddenlayers" placeholder="a number'" value="4">
-                <small class="form-text text-muted">Number of LSTM layers</small>
-              </div>
-            </div>
-            <div class="col s12">
-              <button class="waves-effect waves-light btn" id="btn_draw_trainmodel" onclick="onClickTrainModel()">Begin Training Model</button>
-            </div>
-          </div>
-        </div>
+        <span class="card-title">Train Neural Network <span id="set-info"></span></span>
 
         <div class="row" id="div_container_training" style="display:none">
           <div class="col s12">
@@ -102,9 +61,6 @@
               <div class="card-content">
                 <span class="card-title grey-text text-darken-4" id="text-training">Training Network</span>
                 <h6>Progress</h6>
-                <!-- <div class="progress">
-                  <div class="progress-bar progress-bar-striped progress-bar-animated" id="div_training_progressbar" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%"></div>
-                </div> -->
                 <div class="progress">
                   <div class="determinate" id="div_training_progressbar" style="width: 100%"></div>
                 </div>
@@ -160,28 +116,6 @@
     </div>
     <!-- E Validation -->
 
-    <div class="card">
-      <div class="card-content">
-        <span class="card-title">Network:</span>
-        <!-- <div class="row" id="div_container_predictfirst">
-          <div class="col s12">
-            <p>Don’t have a model to perform prediction? <a href="#div_train">Train your model</a>.</p>
-          </div>
-        </div> -->
-        <div class="row" id="div_container_predicting">
-          <div class="col s12">
-            <div class="card z-depth-2">
-              <div class="card-content">
-                <!-- <span class="card-title grey-text text-darken-4" id="div_predict_title">Network</span> -->
-                <div id="div_network" style="height: 500px;"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-    <!-- E Make Prediction -->
   </div> <!-- E container -->
   <script src="src/brain.js"></script>
   <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
