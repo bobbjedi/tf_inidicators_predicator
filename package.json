@@ -36,6 +36,7 @@
     "@typescript-eslint/eslint-plugin": "^5.4.0",
     "@typescript-eslint/parser": "^5.2.0",
     "axios": "^0.21.1",
+    "convnetjs": "^0.3.0",
     "underscore": "^1.13.1"
   }
 }

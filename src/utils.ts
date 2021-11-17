@@ -72,10 +72,10 @@ const prepSet = (candels_: Candel[], period = 28, offset = 1) => {
     })
   })
 
-  const positive = _.shuffle(set.filter(e => e.set.output[0] > .5))
-  const negative = _.shuffle(set.filter(e => e.set.output[0] < .5))
-  const count = Math.min(positive.length, negative.length)
-  console.log({ positive, negative, count })
+  // const positive = _.shuffle(set.filter(e => e.set.output[0] > .5))
+  // const negative = _.shuffle(set.filter(e => e.set.output[0] < .5))
+  // const count = Math.min(positive.length, negative.length)
+  // console.log({ positive, negative, count })
   const filterred = set
   const allOutputs = filterred
     .map(e => e.set.output[0])
@@ -475,4 +475,5 @@ function addZero (num: number) {
   }
   return num
 }
+$u.wait = (s: number) => new Promise(r => setTimeout(r, s * 1000))
 export default $u

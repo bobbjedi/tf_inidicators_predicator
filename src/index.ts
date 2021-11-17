@@ -1,13 +1,12 @@
 import $u, { Set, LastInput, getInterval } from './utils'
 import * as _ from 'underscore'
-import * as brain from './brain'
-import { trainNet } from './network'
+import { Log, trainNet } from './network'
 
 const Plotly: any = (window as any).Plotly
 
-document.addEventListener('DOMContentLoaded', () => onClickTrainModel('BTC-ETH', 60, 1000, 500))
+document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-ETH', 60, 1000, 500))
 
-function onClickValidate (brainNet: brain.NeuralNetwork, set: Set[], lastInput: LastInput, testCount: number) {
+function onClickValidate (brainNet: any, set: Set[], lastInput: LastInput, testCount: number) {
 
   $('#div_container_validating').show()
   $('#load_validating').show()
@@ -49,7 +48,7 @@ async function onClickTrainModel (symbol: string, tf: number, countCandels: numb
   $('#div_container_training').show()
   $('#btn_draw_trainmodel').hide()
   $('#set-info').html(`<b>${symbol}, tf: ${getInterval('binance', tf)}</b>`)
-  
+
   document.getElementById('div_traininglog').innerHTML = ''
   const n_epochs = 99
   const callbackChar = (epoch: number, log: any) => {
@@ -67,7 +66,7 @@ async function onClickTrainModel (symbol: string, tf: number, countCandels: numb
     Plotly.newPlot(graph_plot, [{ x: Array.from({ length: epoch_loss.length }, (v, k) => k + 1), y: epoch_loss, name: 'Loss' }], { margin: { t: 0 } })
   }
 
-  const callback = async (log: { iterations: number, error: number}) => {
+  const callback = async (log: Log) => {
     callbackChar(log.iterations, { loss: log.error })
   }
 
