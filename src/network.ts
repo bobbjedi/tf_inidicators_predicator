@@ -1,56 +1,57 @@
-import * as tf from '@tensorflow/tfjs'
+// import * as tf from '@tensorflow/tfjs'
 import * as _ from 'underscore'
 import $u from './utils'
 
 export const trainNet = async ({ symbol, tf, countCandels, testCount, callback }: { symbol: string; tf: number, countCandels: number, testCount: number, callback?: (a: Log) => void }) => {
   callback = callback || console.log
+  const options = {
+    task: 'regression', // or 'classification'
+    inputs: 6,
+    outputs: 1
+  }
+  const nn = ml5.neuralNetwork(options)
+
+  console.log(nn)
+
   let candels = await $u.getCandels('binance', symbol, countCandels, tf) //  баржа, пара, период, TF в минутах
   let i = 1
-  while (i++ < 10) {
+  while (i++ < 2) {
     console.log('End:', candels[0].open_time)
     candels = (await $u.getCandels('binance', symbol, countCandels, tf, candels[0].open_time * 1000)).concat(candels)
   }
 
   const { set, lastInput } = $u.prepSet(candels)
   const trainingData = _.shuffle(set.slice(0, set.length - testCount).map(s => s.set))
+  trainingData.forEach(d => nn.addData(d.input, d.output))
+  const trainingOptions = {
+    batchSize: 32,
+    epochs: 5,
+  }
 
-  const net = perceptronFromTFJS([32])
-  await net.trainNet({ data: trainingData, callback, epochs: 30 })
-  console.log('net:', net)
-  return { net, set, lastInput }
+  // const x = trainingData.map(s => s.input)
+  // const y = trainingData.map(s => s.output)
+  // nn.addData(x, y)
+  // nn.normalizeData()
+  function whileTraining (epoch: number, loss: any) {
+    // console.log(`epoch: ${epoch}, loss:${loss}`)
+    epoch > 3 && callback({ iterations: epoch, error: loss.loss })
+    console.log(epoch, loss.loss)
+  }
+  nn.run = (i: number[]) => new Promise(r => {
+    nn.predict(i, (err, res) => console.log(res[0].value))
+    return nn.predict(i, r([res[0].value]))
+  })
+  return new Promise(r => {
+    nn.train(trainingOptions, whileTraining, () => {
+      console.log('NN', nn)
+      r({ net: nn, set, lastInput })
+    })
+  })
+
+  // const net = perceptronFromTFJS([32])
+  // await net.trainNet({ data: trainingData, callback, epochs: 30 })
+  // console.log('net:', net)
+  // return { net, set, lastInput }
 }
 
 export type Log = { iterations: number, error: number}
-
-const perceptronFromTFJS = (hiddenLayers: number[], activation: any = 'relu') => {
-  const model = tf.sequential()
-  return {
-    async trainNet (opt: {data: {input:number[], output: number[]}[], callback: (d: Log)=> void, epochs: number}) {
-
-      const neurons = [opt.data[0].input.length].concat(hiddenLayers, [opt.data[0].output.length])
-      const layers = neurons.map((count, i) => {
-        return { inputShape: [count], units: neurons[i + 1], activation }
-      }).filter(l => l.units)
-      console.log({ neurons, layers })
-      layers.forEach(l => model.add(tf.layers.dense(l)))
-      model.compile({ optimizer: tf.train.adadelta(0.01), loss: 'meanSquaredError' })
-      console.log(model.layers)
-
-      const x = tf.tensor2d(opt.data.map(s => s.input))
-      const y = tf.tensor2d(opt.data.map(s => s.output))
-      await model.fit(x, y, {
-        epochs: opt.epochs,
-        callbacks: {
-          onEpochEnd (epoch, log) {
-            epoch > 3 && opt.callback({ error: log.loss, iterations: epoch })
-          }
-        }
-      })
-    },
-    run (input: number[]): number[] {
-      return (model.predict(tf.tensor2d([input])) as any).arraySync()
-    }
-  }
-  // model.add(tf.layers.dense({ inputShape: [input], units: 10, activation }))
-  // model.add(tf.layers.dense({ inputShape: [10], units: 1, activation }))
-}

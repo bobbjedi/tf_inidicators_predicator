@@ -59,7 +59,8 @@ module.exports = {
   },
   'globals': {
     $: true,
-    'globalThis': false, // means it is not writeable
+    ml5: true,
+    globalThis: false, // means it is not writeable
   }
 }
 
