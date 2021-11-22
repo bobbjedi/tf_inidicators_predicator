@@ -19,6 +19,18 @@ const prepChanges = (candels: Candel[], period: number) => {
   //   const change7 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 14), 1)
   return [change1.price, change2.price, change3.price, change4.price, change5.price, change6.price]
 }
+
+const prepChangesCL = (candels: Candel[], period: number) => {
+  const changes = candels.map((c, i) => {
+    if (i) {
+      return $u.percentChange(candels[i - 1].close, c.close)
+    } else {
+      return Infinity
+    }
+  }).filter(i => i !== Infinity)
+  console.log(changes)
+  return changes
+}
 // const sma = new SMA(4) // Create SMA with 4 period
 // sma.nextValue(1); // undefiend
 // sma.nextValue(2); // undefiend
