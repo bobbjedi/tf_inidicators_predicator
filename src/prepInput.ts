@@ -16,8 +16,19 @@ const prepChanges = (candels: Candel[], period: number) => {
   const change4 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 8), 1)
   const change5 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 10), 1)
   const change6 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 12), 1)
-  //   const change7 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 14), 1)
-  return [change1.price, change2.price, change3.price, change4.price, change5.price, change6.price]
+  const change7 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 14), 1)
+  const change8 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 16), 1)
+  const change9 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 18), 1)
+  // const change10 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 20), 1)
+  const data = [change1, change2, change3, change4, change5, change6, change7, change8, change9]
+
+  const maxV = Math.max(...data.map(v => v.volume))
+  const minV = Math.min(...data.map(v => v.volume))
+
+  const maxP = Math.max(...data.map(v => v.price))
+  const minP = Math.min(...data.map(v => v.price))
+
+  return data.map(c => [$u.normalise(c.price, maxP, minP), $u.normalise(c.volume, maxV, minV)])
 }
 // const sma = new SMA(4) // Create SMA with 4 period
 // sma.nextValue(1); // undefiend

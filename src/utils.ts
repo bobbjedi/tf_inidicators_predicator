@@ -11,7 +11,7 @@ function formatDate (date: number) {
 
 export type Set = {
     set: {
-        input: number[];
+        input: number[][];
         output: number[];
     },
     price: number;
@@ -19,7 +19,7 @@ export type Set = {
     time: string;
 };
 
-export type LastInput = { inp: number[], unix: number, price: number };
+export type LastInput = { inp: number[][], unix: number, price: number };
 const separateArr = <Type>(arr: Type[], period: number) => {
   const inputs: Type[][] = []
   let i = 0
@@ -31,7 +31,7 @@ const separateArr = <Type>(arr: Type[], period: number) => {
 }
 
 // window.percentChange = percentChange;
-const prepSet = (candels_: Candel[], period = 28, offset = 1) => {
+const prepSet = (candels_: Candel[], period = 40, offset = 1) => {
   const arrCandels = separateArr(candels_.slice(), period)
   const set: Set[] = []
   let lastInput: LastInput = { inp: [], unix: 0, price: 0 }
