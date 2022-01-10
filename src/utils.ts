@@ -52,7 +52,9 @@ const prepSet = (candels_: Candel[], period = 28, offset = 1) => {
 
     // const nextMaxClose = Math.max(arrCandels[i + 1][arrCandels[i + 1].length - 1].close, close);
 
-    const arrNextOffsetPrices: number[] = [close]
+    // const arrNextOffsetPrices: number[] = [close]
+
+    const arrNextOffsetPrices: number[] = []
     let p = 1
     while (p <= offset) {
       arrNextOffsetPrices.push(arrCandels[i + p][arrCandels[i + p].length - 1].close)
@@ -61,6 +63,7 @@ const prepSet = (candels_: Candel[], period = 28, offset = 1) => {
     const nextMaxClose = Math.max(...arrNextOffsetPrices)
 
     const output = $u.percentChange(close, nextMaxClose)
+    // console.log('output', output)
     set.push({
       set: {
         input,
