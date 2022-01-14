@@ -79,7 +79,7 @@ const lstm = (inputExample: number[][]) => {
 }
 
 setTimeout(async () => {
-  const setdata = ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]).map(e => e / 15)
+  const setdata = _.shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]).map(e => e / 15)
   const set = $u.separateArr($u.separateArr(setdata, 3), 3)
   console.log(set)
   const lstmNet = lstm(set[0])
