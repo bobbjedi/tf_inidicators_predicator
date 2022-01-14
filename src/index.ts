@@ -4,7 +4,7 @@ import { Log, trainNet } from './network'
 
 const Plotly: any = (window as any).Plotly
 
-document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-BTC', 15, 1000, 500))
+document.addEventListener('DOMContentLoaded', () => onClickTrainModel('USDT-BTC', 720, 1000, 500))
 
 function onClickValidate (brainNet: any, set: Set[], lastInput: LastInput, testCount: number) {
 
@@ -70,7 +70,7 @@ async function onClickTrainModel (symbol: string, tf: number, countCandels: numb
     callbackChar(log.iterations, { loss: log.error })
   }
 
-  const { net, set, lastInput } = await trainNet({ symbol, tf, countCandels, callback, testCount })
+  const { net, set, lastInput } = await trainNet({ symbol, tf_: tf, countCandels, callback, testCount })
   console.log('NETWORK!', net)
 
   $('#div_container_validate').show()
