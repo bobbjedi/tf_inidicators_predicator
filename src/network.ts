@@ -25,7 +25,7 @@ export type Log = { iterations: number, error: number}
 const perceptronFromTFJS = (hiddenLayers: number[], activation: any = 'relu') => {
   const model = tf.sequential()
   return {
-    async trainNet (opt: {data: {input:number[], output: number[]}[], callback: (d: Log)=> void, epochs: number}) {
+    async trainNet (opt: {data: {input:number[], output: number[]}[], callback: (d: Log)=> void, epochs: number, batchSize?:number}) {
 
       const neurons = [opt.data[0].input.length].concat(hiddenLayers, [opt.data[0].output.length])
       const layers = neurons.map((count, i) => {
@@ -33,13 +33,14 @@ const perceptronFromTFJS = (hiddenLayers: number[], activation: any = 'relu') =>
       }).filter(l => l.units)
       console.log({ neurons, layers })
       layers.forEach(l => model.add(tf.layers.dense(l)))
-      model.compile({ optimizer: tf.train.adadelta(0.01), loss: 'meanSquaredError' })
+      model.compile({ optimizer: tf.train.sgd(0.1), loss: 'meanSquaredError' })
       console.log(model.layers)
 
       const x = tf.tensor2d(opt.data.map(s => s.input))
       const y = tf.tensor2d(opt.data.map(s => s.output))
       await model.fit(x, y, {
         epochs: opt.epochs,
+        batchSize: opt.batchSize,
         callbacks: {
           onEpochEnd (epoch, log) {
             epoch > 3 && opt.callback({ error: log.loss, iterations: epoch })
@@ -54,3 +55,17 @@ const perceptronFromTFJS = (hiddenLayers: number[], activation: any = 'relu') =>
   // model.add(tf.layers.dense({ inputShape: [input], units: 10, activation }))
   // model.add(tf.layers.dense({ inputShape: [10], units: 1, activation }))
 }
+
+// XOR
+setTimeout(async () => {
+  const set = [
+    { input: [0, 0], output: [0] },
+    { input: [1, 0], output: [1] },
+    { input: [0, 1], output: [1] },
+    { input: [1, 1], output: [0] },
+  ]
+  const net = perceptronFromTFJS([20, 20], 'relu')
+  const stat = await net.trainNet({ data: set, callback: console.log, epochs: 50 })
+  console.log('TFF', stat)
+  set.forEach(s => console.log(s.output[0], net.run(s.input)[0]))
+}, 1000)
