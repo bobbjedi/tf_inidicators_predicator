@@ -1,62 +1,62 @@
 import * as tf from '@tensorflow/tfjs'
 import * as _ from 'underscore'
 import prepInput from './prepInput'
-import $u from './utils'
+import $u, { Candel } from './utils'
 
 export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback }: { symbol: string; tf_: number, countCandels: number, testCount: number, callback?: (a: Log) => void }) => {
   // return
   callback = callback || console.log
+
+  tf_ = 720
+  symbol = 'USDT-BTC'
+  testCount = 500
+  const countCandelsReq = 5
+  const period = 14
+  const normilizeDemension = 5
+
   let candels = await $u.getCandels('binance', symbol, countCandels, tf_) //  баржа, пара, период, TF в минутах
-  let i = 1
-  while (i++ < 5) {
+  let c = 1
+  while (c++ < countCandelsReq) {
     console.log('End:', candels[0].open_time)
     candels = (await $u.getCandels('binance', symbol, countCandels, tf_, candels[0].open_time * 1000)).concat(candels)
   }
-
-  const period = 28
-  const size = 14
-  // const arrCandels = $u.separateArr(candels.slice(0, 40), period)
-  const arrCandels = $u.separateArr(candels.slice(), period)
-  const set = $u.separateArr(arrCandels.map(currentCandels => prepInput(currentCandels, period).map(n => $u.normalise(n, -3, 3))), size)
-  const inputs: number[][][] = []
-  const outputs: number[][] = []
-  set.forEach((input, i) => {
-    if (!set[i]) {
-      return
-    }
-    inputs.push(input)
-    const out = input.splice(-1)[0]
-    input._o = out
-    outputs.push(out)
-  })
-  console.log(inputs[10])
-  console.log(outputs[10])
-  const testInp = inputs.splice(-500)
-  const testOut = outputs.splice(-500)
-  const lstmNet = lstm(set[0])
-  const x = tf.tensor3d(inputs)
-  const y = tf.tensor2d(outputs)
-  await lstmNet.fit(x, y, {
-    epochs: 25,
+  const { x, y, lastX } = prep3d(candels, { period, normilizeDemension })
+  const testInp = x.splice(-testCount)
+  const testOut = y.splice(-testCount)
+  const lstmNet = lstm(x[0], y[0])
+  const xs = tf.tensor3d(x)
+  const ys = tf.tensor2d(y)
+  await lstmNet.fit(xs, ys, {
+    epochs: 10,
     batchSize: 10,
     callbacks: {
       onEpochEnd (epoch, log) {
-        epoch > 3 && console.log(epoch, log)
-        epoch > 3 && callback({ error: log.loss, iterations: epoch })
-        // if (epoch % 10 === 0) {
-        //   console.log(epoch, '-------------')
-        //   testInp.forEach((input, i) => {
-        //     const predict = (lstmNet.predict(tf.tensor3d([input])) as any).arraySync()[0] as number[]
-        //     (predict[0] > .8 || predict[0] < .2) && console.log(predict.map(e => +(e * 10).toFixed()), testOut[i].map(e => +(e * 10).toFixed()))
-        //   })
-        // }
+        console.log(epoch, log)
+        callback({ error: log.loss, iterations: epoch })
       }
     }
   })
   testInp.forEach((input, i) => {
     const predict = (lstmNet.predict(tf.tensor3d([input])) as any).arraySync()[0] as number[]
-    (predict[0] > .8 || predict[0] < .2) && console.log(input, predict.map(e => +(e * 10).toFixed()), testOut[i].map(e => +(e * 10).toFixed()))
+    if (predict[0] > .8) {
+      console.log(predict.map(e => +(e * 10).toFixed()), testOut[i].map(e => +(e * 10).toFixed()), input[input.length - 1].price, '->', testOut[i].price)
+    }
   })
+  const last = (lstmNet.predict(tf.tensor3d([lastX.splice(-testInp[0].length)])) as any).arraySync()[0] as number[]
+  console.log('Last:', last.map(e => +(e * 10).toFixed()))
+  // const testTokens = ['MATIC', 'ETH', 'ADA', 'LINK', 'BTC', 'FTM']
+  // while (testTokens.length) {
+  //   const tokenName = testTokens.pop()
+  //   const tests = prep3d(await $u.getCandels('binance', 'USDT-' + tokenName, countCandels, tf_))
+  //   tests.x.forEach((input, i) => {
+  //     const predict = (lstmNet.predict(tf.tensor3d([input])) as any).arraySync()[0] as number[]
+  //     predict[0] > .8 && console.log(tokenName, predict.map(e => +(e * 10).toFixed()), tests.y[i].map(e => +(e * 10).toFixed()))
+  //   })
+  //   const last = (lstmNet.predict(tf.tensor3d([tests.lastX.splice(-tests.x[0].length)])) as any).arraySync()[0] as number[]
+  //   console.log('>', tokenName, last.map(e => +(e * 10).toFixed()))
+  // }
+
+  // console.log('Llast:', (lstmNet.predict(tf.tensor3d([lastX.splice(-testInp[0].length)])) as any).arraySync()[0] as number[])
   // const { set, lastInput } = $u.prepSet(candels)
   // const trainingData = _.shuffle(set.slice(0, set.length - testCount).map(s => s.set))
 
@@ -64,6 +64,59 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
   // await net.trainNet({ data: trainingData, callback, epochs: 30 })
   // console.log('net:', net)
   // return { net, set, lastInput }
+}
+const lstm = (inputExample: number[][], outputExample: number[]) => {
+  console.log('i', inputExample)
+  const inputShape = tf.tensor2d(inputExample).shape
+  console.log({ inputShape })
+  const model = tf.sequential()
+  model.add(tf.layers.dense({ inputShape, units: 256 }))
+  // model.add(tf.layers.dropout({ rate: 0.2 }))
+  // model.add(tf.layers.lstm({ units: 128, activation: 'relu' }))
+  // model.add(tf.layers.dropout({ rate: 0.2 }))
+  model.add(tf.layers.dense({ units: 256, activation: 'relu' }))
+  // model.add(tf.layers.dense({ units: 256, activation: 'relu' }))
+  model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
+  model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
+  // model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
+  model.add(tf.layers.dense({ units: 64, activation: 'relu' }))
+  // model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
+  model.add(tf.layers.flatten())
+  model.add(tf.layers.dense({ units: outputExample.length, activation: 'relu' }))
+  model.compile({ optimizer: tf.train.adam(0.0005), loss: 'meanSquaredError' })
+  return model
+}
+
+const prep3d = (candels: Candel[], opt: {normilizeDemension: number, period: number}) => {
+  const { period, normilizeDemension } = opt
+  // const arrCandels = $u.separateArr(candels.slice(0, 40), period)
+  const arrCandels = $u.separateArr(candels.slice(), period * 2)
+  const set = $u.separateArr(arrCandels.map((currentCandels, i) => {
+    const nextCandles = arrCandels[i + 1]
+    const nextC = nextCandles && nextCandles[nextCandles.length - 1]
+    const input = prepInput(currentCandels, period * 2, normilizeDemension)
+    if (nextC) {
+      input.time = nextC.open_time
+      input.price = nextC.close
+    }
+
+    return input
+  // .map(n => $u.normalise(n, -normilizeDemension, normilizeDemension))
+  }), period)
+  const x: number[][][] = []
+  const y: number[][] = []
+  let lastX:number[][] = []
+  set.forEach(input => {
+    lastX = input.slice()
+    x.push(input)
+    const out = input.splice(-1)[0]
+    // const out = outs.reduce((r, c) => {
+    //   return c.map((cl, i) => Math.max(cl, (r[i] || 0)))
+    // }, [])
+    y.push(out)
+  })
+  console.log('lastX', lastX)
+  return { x, y, lastX }
 }
 
 export type Log = { iterations: number, error: number}
@@ -102,31 +155,44 @@ const perceptronFromTFJS = (hiddenLayers: number[], activation: any = 'relu') =>
   // model.add(tf.layers.dense({ inputShape: [10], units: 1, activation }))
 }
 
-const lstm = (inputExample: number[][]) => {
-  const inputShape = tf.tensor2d(inputExample).shape
-  // const outputShape = tf.tensor1d(inputExample[0]).shape
-  console.log({ inputShape })
-  // console.log('input shape', inputShape)
-  const model = tf.sequential()
-  model.add(tf.layers.dense({ inputShape, units: 256 }))
-  // model.add(tf.layers.dropout({ rate: 0.2 }))
-  // model.add(tf.layers.lstm({ units: 128, activation: 'relu' }))
-  // model.add(tf.layers.dropout({ rate: 0.2 }))
-  model.add(tf.layers.dense({ units: 256, activation: 'relu' }))
-  model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
-  model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
-  model.add(tf.layers.dense({ units: 64, activation: 'relu' }))
-  // model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
-  model.add(tf.layers.flatten())
-  model.add(tf.layers.dense({ units: inputExample[0].length, activation: 'relu' }))
-  model.compile({ optimizer: tf.train.adam(0.005), loss: 'meanSquaredError' })
-  return model
-  // model.add(input)
-  // model.add(denseLayer1)
-  // model.add(denseLayer2)
-  // model.add(tf.layers.flatten())
-  // model.add(outputLayer)
-}
+// if (tf === 1)
+// { return '1m' }
+
+// if (tf === 3)
+// { return '3m' }
+
+// if (tf === 5)
+// { return '5m' }
+
+// if (tf === 15)
+// { return '15m' }
+
+// if (tf === 30)
+// { return '30m' }
+
+// if (tf === 60)
+// { return '1h' }
+
+// if (tf === 120)
+// { return '2h' }
+
+// if (tf === 240)
+// { return '4h' }
+
+// if (tf === 360)
+// { return '6h' }
+
+// if (tf === 480)
+// { return '8h' }
+
+// if (tf === 720)
+// { return '12h' }
+
+// if (tf === 4320)
+// { return '3d' }
+
+// if (tf === 10080)
+// { return '1w' }
 
 setTimeout(async () => {
   return

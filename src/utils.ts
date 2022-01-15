@@ -36,7 +36,7 @@ const prepSet = (candels_: Candel[], period = 28, offset = 1) => {
   const set: Set[] = []
   let lastInput: LastInput = { inp: [], unix: 0, price: 0 }
   arrCandels.forEach((currentCandels, i) => {
-    const input = prepInput(currentCandels, period)
+    const input = prepInput(currentCandels, period, 1)
     // console.log(input)
     if (!arrCandels[i + offset]) {
       const lastCandel = candels_[candels_.length - 1]
