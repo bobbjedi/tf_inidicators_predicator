@@ -10,7 +10,7 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
   tf_ = 720
   symbol = 'USDT-BTC'
   testCount = 500
-  const countCandelsReq = 5
+  const countCandelsReq = 1
   const period = 14
   const normilizeDemension = 5
 
@@ -20,10 +20,12 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
     console.log('End:', candels[0].open_time)
     candels = (await $u.getCandels('binance', symbol, countCandels, tf_, candels[0].open_time * 1000)).concat(candels)
   }
-  const { x, y, lastX } = prep3d(candels, { period, normilizeDemension })
-  const testInp = x.splice(-testCount)
-  const testOut = y.splice(-testCount)
-  const lstmNet = lstm(x[0], y[0])
+  const { x, y } = prep3d(candels, { period, normilizeDemension })
+  // const testInp = x.splice(-testCount)
+  // const testOut = y.splice(-testCount)
+  const testInp = x.slice()
+  const testOut = y.slice()
+  const lstmNet = lstm(x[5], y[5])
   const xs = tf.tensor3d(x)
   const ys = tf.tensor2d(y)
   await lstmNet.fit(xs, ys, {
@@ -38,12 +40,13 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
   })
   testInp.forEach((input, i) => {
     const predict = (lstmNet.predict(tf.tensor3d([input])) as any).arraySync()[0] as number[]
+    // if (_.last(predict) > .8 && predict[2] > .8) {
     if (predict[0] > .8) {
-      console.log(predict.map(e => +(e * 10).toFixed()), testOut[i].map(e => +(e * 10).toFixed()), input[input.length - 1].price, '->', testOut[i].price)
+      console.log(predict.map(e => +(e * 10).toFixed()), testOut[i].map(e => +(e * 10).toFixed()), $u.percentChange(input[input.length - 1].price, testOut[i].price), input[input.length - 1].price, '->', testOut[i].price)
     }
   })
-  const last = (lstmNet.predict(tf.tensor3d([lastX.splice(-testInp[0].length)])) as any).arraySync()[0] as number[]
-  console.log('Last:', last.map(e => +(e * 10).toFixed()))
+  // const last = (lstmNet.predict(tf.tensor3d([lastX.splice(-testInp[0].length)])) as any).arraySync()[0] as number[]
+  // console.log('Last:', last.map(e => +(e * 10).toFixed()))
   // const testTokens = ['MATIC', 'ETH', 'ADA', 'LINK', 'BTC', 'FTM']
   // while (testTokens.length) {
   //   const tokenName = testTokens.pop()
@@ -67,56 +70,47 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
 }
 const lstm = (inputExample: number[][], outputExample: number[]) => {
   console.log('i', inputExample)
+  console.log('o', outputExample)
   const inputShape = tf.tensor2d(inputExample).shape
   console.log({ inputShape })
   const model = tf.sequential()
+
+  // model.add(tf.layers.dropout({ rate: 0.2 }))
+
+  // model.add(tf.layers.lstm({ units: 256, inputShape, activation: 'relu', returnSequences: true }))
+  // model.add(tf.layers.lstm({ units: 128, activation: 'relu', returnSequences: true }))
+  // model.add(tf.layers.lstm({ units: 64, activation: 'relu' }))
+  // model.add(tf.layers.dropout({ rate: 0.2 }))
+
   model.add(tf.layers.dense({ inputShape, units: 256 }))
-  // model.add(tf.layers.dropout({ rate: 0.2 }))
-  // model.add(tf.layers.lstm({ units: 128, activation: 'relu' }))
-  // model.add(tf.layers.dropout({ rate: 0.2 }))
   model.add(tf.layers.dense({ units: 256, activation: 'relu' }))
   // model.add(tf.layers.dense({ units: 256, activation: 'relu' }))
-  model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
-  model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
   // model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
-  model.add(tf.layers.dense({ units: 64, activation: 'relu' }))
+  // model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
+  // model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
+  // model.add(tf.layers.dense({ units: 64, activation: 'relu' }))
   // model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
   model.add(tf.layers.flatten())
+
   model.add(tf.layers.dense({ units: outputExample.length, activation: 'relu' }))
   model.compile({ optimizer: tf.train.adam(0.0005), loss: 'meanSquaredError' })
   return model
 }
 
-const prep3d = (candels: Candel[], opt: {normilizeDemension: number, period: number}) => {
+const prep3d = (candels: Candel[], opt: {normilizeDemension: number, period: number}): {x: number[][][], y: number[][]} => {
   const { period, normilizeDemension } = opt
   // const arrCandels = $u.separateArr(candels.slice(0, 40), period)
   const arrCandels = $u.separateArr(candels.slice(), period * 2)
-  const set = $u.separateArr(arrCandels.map((currentCandels, i) => {
-    const nextCandles = arrCandels[i + 1]
-    const nextC = nextCandles && nextCandles[nextCandles.length - 1]
-    const input = prepInput(currentCandels, period * 2, normilizeDemension)
-    if (nextC) {
-      input.time = nextC.open_time
-      input.price = nextC.close
-    }
+  // console.log('arrCandels', arrCandels)
+  const changes = arrCandels.map(c => prepInput(c, period * 2, normilizeDemension))
 
-    return input
-  // .map(n => $u.normalise(n, -normilizeDemension, normilizeDemension))
-  }), period)
-  const x: number[][][] = []
-  const y: number[][] = []
-  let lastX:number[][] = []
-  set.forEach(input => {
-    lastX = input.slice()
-    x.push(input)
-    const out = input.splice(-1)[0]
-    // const out = outs.reduce((r, c) => {
-    //   return c.map((cl, i) => Math.max(cl, (r[i] || 0)))
-    // }, [])
-    y.push(out)
-  })
-  console.log('lastX', lastX)
-  return { x, y, lastX }
+  // console.log('z', changes)
+  const inputs = $u.separateArr(changes, 5)
+  const outputs = inputs.map(i => i.pop())
+
+  const x: number[][][] = inputs
+  const y: number[][] = outputs
+  return { x, y }
 }
 
 export type Log = { iterations: number, error: number}
