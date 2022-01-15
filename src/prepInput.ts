@@ -30,14 +30,14 @@ const prepChanges = (candels: Candel[], period: number, priceDemec: number) => {
     $u.normalise(change6.price, -priceDemec * 2, priceDemec * 2),
     $u.normalise(change7.price, -priceDemec * 2, priceDemec * 2),
 
-    // $u.normalise(change0.volume, -100, 100),
-    // $u.normalise(change1.volume, -100, 100),
-    // $u.normalise(change2.volume, -100, 100),
-    // $u.normalise(change3.volume, -100, 100),
-    // $u.normalise(change4.volume, -100, 100),
-    // $u.normalise(change5.volume, -100, 100),
-    // $u.normalise(change6.volume, -100, 100),
-    // $u.normalise(change7.volume, -100, 100)
+    $u.normalise(change0.volume, -100, 100),
+    $u.normalise(change1.volume, -100, 100),
+    $u.normalise(change2.volume, -100, 100),
+    $u.normalise(change3.volume, -100, 100),
+    $u.normalise(change4.volume, -100, 100),
+    $u.normalise(change5.volume, -100, 100),
+    $u.normalise(change6.volume, -100, 100),
+    $u.normalise(change7.volume, -100, 100)
   ]
   res.price = candels[candels.length - 1].close
   return res
