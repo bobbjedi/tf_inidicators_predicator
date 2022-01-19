@@ -8,19 +8,35 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
   callback = callback || console.log
 
   tf_ = 720
-  symbol = 'BTC-ETH'
-  testCount = 500
-  const countCandelsReq = 10
+  symbol = 'BTC-FTM'
+  testCount = 100
+  const countCandelsReq = 3
   const period = 10
   const normilizeDemension = 5
   let candels = await $u.getCandels('binance', symbol, countCandels, tf_) //  баржа, пара, период, TF в минутах
   let c = 1
-  while (c++ < countCandelsReq) {
-    console.log('End:', candels[0].open_time)
+  let pred = -1
+  while (c++ < countCandelsReq && candels[0]?.open_time !== pred) {
+    pred = candels[0]?.open_time || -1
     candels = (await $u.getCandels('binance', symbol, countCandels, tf_, candels[0].open_time * 1000)).concat(candels)
+    console.log('End:', candels[0].open_time === pred)
   }
+  const arrCandelsLast = $u.separateArr(candels.slice().splice(-100), period * 2)
   const data = prep3d(candels, { period, normilizeDemension })
+  // const last = prepInput(candels.slice().splice(-100), period * 2, 0)
+
+  const last = arrCandelsLast.map(c => {
+    c = c.slice()
+    return {
+      inp: prepInput(c, period * 2, normilizeDemension).splice(-8),
+      time: _.last(c).open_time * 1000,
+      price: _.last(c).open,
+    }
+  })
   const testData = data.splice(-testCount)
+  console.log('testData:', testData)
+  console.log('Last:', last)
+
   const x = data.map(d => d.input)
   const y = data.map(d => d.output)
   const lstmNet = lstm(x[5], y[5])
@@ -28,7 +44,7 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
   const xs = tf.tensor2d(x)
   const ys = tf.tensor2d(y)
   await lstmNet.fit(xs, ys, {
-    epochs: 20,
+    epochs: 50,
     batchSize: 32,
     callbacks: {
       onEpochEnd (epoch, log) {
@@ -37,13 +53,13 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
       }
     }
   })
-  testData.forEach((d, i) => {
-    const p = (lstmNet.predict(tf.tensor2d([d.input])) as any).arraySync()[0] as number[]
-    // const isShow = (!testData[i + 1] || (Math.max(predict[1] / predict[0], predict[2] / predict[1]) > 1.4))
-    // const isShow = _.last(d.input) < p[0] && p[0] < p[1] && p[1] < p[2];
-    const isShow = _.last(d.input) < .95 && _.last(d.input) > .05 && (_.last(d.input) * 1.1 < p[0]) && (p[0] * 1.1 < p[1]);
-
-    (!testData[i + 1] || isShow) && console.log($u.formatDate(d.time), p.map(p => +(p * 100).toFixed()), ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
+  testData.forEach(d => {
+    const p = +(((lstmNet.predict(tf.tensor2d([d.input])) as any).arraySync()[0] as number[])[0] * normilizeDemension).toFixed(1)
+    p > 2.5 && console.log($u.formatDate(d.time), p, ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
+  })
+  last.forEach(d => {
+    const p = +(((lstmNet.predict(tf.tensor2d([d.inp])) as any).arraySync()[0] as number[])[0] * normilizeDemension).toFixed(1)
+    console.log('t>', $u.formatDate(d.time), '>>', p, '<<', d.price)
   })
 
   console.log('Test:', lstmNet.evaluate(tf.tensor2d(testData.map(d => d.input)), tf.tensor2d(testData.map(d => d.output))).toString())
@@ -90,14 +106,15 @@ const lstm = (inputExample: number[], outputExample: number[]) => {
 const prep3d = (candels: Candel[], opt: { normilizeDemension: number, period: number }) => {
   const { period, normilizeDemension } = opt
   const arrCandels = $u.separateArr(candels.slice(), period * 2)
-  const data = arrCandels.map(c => {
+  const data = arrCandels.map(c_ => {
+    const c = c_.slice()
     const input = prepInput(c, period * 2, normilizeDemension)
     const output = input.splice(-3)
     const lastC = c.splice(-3)
-    const bestPrice = Math.max(...lastC.map(c => c.max))
+    const bestPrice = Math.max(...lastC.map(c => c.close))
     return {
       input,
-      output,
+      output: [$u.normalise($u.percentChange(lastC[0].open, bestPrice), 0, normilizeDemension)],
       time: lastC[0].open_time * 1000,
       price: lastC[0].open,
       bestPrice
