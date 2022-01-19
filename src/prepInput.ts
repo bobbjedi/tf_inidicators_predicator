@@ -1,10 +1,10 @@
 import $u, { Candel } from './utils'
 import * as ind from '@debut/indicators'
 export default (candels: Candel[], period: number, priceDemec: number) => {
-  return prepChanges(candels, period, priceDemec)
+  return prepSma(candels, period, priceDemec)
 }
 
-const prepSma = (candels: Candel[], period: number) => {
+const prepSma = (candels: Candel[], period: number, n?: number) => {
   const sma = new ind.WEMA(period / 2)
   return $u.normalizeArr(candels.map(c => sma.nextValue(c.close)).filter(v => v))
 }
