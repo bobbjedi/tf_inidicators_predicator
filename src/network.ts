@@ -9,7 +9,7 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
 
   tf_ = 720
   symbol = 'USDT-BTC'
-  testCount = 100
+  testCount = 500
   const countCandelsReq = 4
   const period = 8
   const normilizeDemension = 5
@@ -45,8 +45,8 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
   const xs = tf.tensor2d(x)
   const ys = tf.tensor2d(y)
   await lstmNet.fit(xs, ys, {
-    epochs: 50,
-    batchSize: 32,
+    epochs: 10,
+    // batchSize: 32,
     callbacks: {
       onEpochEnd (epoch, log) {
         console.log(epoch, log)
@@ -71,7 +71,15 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
   const prices: number[] = testData.map(d => d.price)
   const times: number[] = testData.map(d => d.time)
   const predicts = (await (lstmNet.predict(tf.tensor2d(testData.map(d => d.input))) as any).array()) as number[][]
-  const buy: (0 | 1)[] = predicts.map(p => checkIsUp(p) ? 1 : 0)
+  let isBuy = false
+  const buy: (0 | 1)[] = predicts.map(p => {
+    if (checkIsUp(p) && !isBuy) {
+      isBuy = true
+      return 1
+    }
+    isBuy = checkIsUp(p)
+    return 0
+  })
   const sell: (0 | 1)[] = predicts.map(p => Math.max(p[1] / p[0], p[2] / p[1]) < 1 ? 1 : 0)
   console.log(symbol, tf_, period)
   return { prices, times, buy, sell }
@@ -102,7 +110,7 @@ const lstm = (inputExample: number[], outputExample: number[]) => {
 
   model.add(tf.layers.dense({ units: outputExample.length, activation: 'relu' }))
   console.log('REady compile')
-  model.compile({ optimizer: tf.train.adam(.0001), loss: 'meanSquaredError', metrics: ['accuracy'] })
+  model.compile({ optimizer: tf.train.adam(), loss: 'meanSquaredError', metrics: ['accuracy'] })
   console.log('Model:', model.summary())
   console.log('Backend:', tf.getBackend())
   return model
@@ -117,7 +125,7 @@ const prep3d = (candels: Candel[], opt: { normilizeDemension: number, period: nu
     // console.log(input)
     const output = input.splice(-2)
     const lastC = c.splice(-2)
-    const bestPrice = Math.max(...lastC.map(c => c.close))
+    const bestPrice = Math.max(...lastC.map(c => c.max))
     // console.log(output, $u.percentChange(lastC[0].open, bestPrice))
     return {
       input,
@@ -132,46 +140,13 @@ const prep3d = (candels: Candel[], opt: { normilizeDemension: number, period: nu
 }
 
 const checkIsUp = (arr: number[]) => {
-  return arr.reduce((res, c, i) => {
-    return res && c < (arr[i + 1] || Infinity)
-  }, true)
+  // return arr.reduce((res, c, i) => {
+  //   return res && c < (arr[i + 1] || Infinity)
+  // }, true)
+  return arr[1] / arr[0] > 1.1 || arr[2] / arr[1] > 1.1
 }
 
 export type Log = { iterations: number, error: number }
-
-const perceptronFromTFJS = (hiddenLayers: number[], activation: any = 'relu') => {
-  const model = tf.sequential()
-  return {
-    async trainNet (opt: { data: { input: number[], output: number[] }[], callback: (d: Log) => void, epochs: number, batchSize?: number }) {
-
-      const neurons = [opt.data[0].input.length].concat(hiddenLayers, [opt.data[0].output.length])
-      const layers = neurons.map((count, i) => {
-        return { inputShape: [count], units: neurons[i + 1], activation }
-      }).filter(l => l.units)
-      console.log({ neurons, layers })
-      layers.forEach(l => model.add(tf.layers.dense(l)))
-      model.compile({ optimizer: tf.train.adam(0.1), loss: 'meanSquaredError' })
-      console.log(model.layers)
-
-      const x = tf.tensor2d(opt.data.map(s => s.input))
-      const y = tf.tensor2d(opt.data.map(s => s.output))
-      await model.fit(x, y, {
-        epochs: opt.epochs,
-        batchSize: opt.batchSize,
-        callbacks: {
-          onEpochEnd (epoch, log) {
-            epoch > 3 && opt.callback({ error: log.loss, iterations: epoch })
-          }
-        }
-      })
-    },
-    run (input: number[]): number[] {
-      return (model.predict(tf.tensor2d([input])) as any).arraySync()
-    }
-  }
-  // model.add(tf.layers.dense({ inputShape: [input], units: 10, activation }))
-  // model.add(tf.layers.dense({ inputShape: [10], units: 1, activation }))
-}
 
 // if (tf === 1)
 // { return '1m' }
