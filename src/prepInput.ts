@@ -10,6 +10,18 @@ export const prepSMA = (candels: Candel[], period: number) => {
   const sma = new ind.SMA(period)
   return $u.normalizeArr(candels.map(c => sma.nextValue(c.close)).filter(v => v))
 }
+export const prepBB = (candels: Candel[], period: number, stdDev = 1.5) => {
+  type lineName = 'middle'| 'upper' | 'lower'
+  const bb = new ind.BollingerBands(period, stdDev)
+  const bbs = candels.map(c => bb.nextValue(c.close)).filter(v => v) as {[key in lineName]: number}[]
+  ['lower', 'middle', 'upper'].forEach((line: lineName) => {
+    const prices = bbs.map(bb => bb[line])
+    const maxPrice = Math.max(...prices)
+    const minPrice = Math.min(...prices)
+    bbs.map(bb => bb[line] = $u.normalise(bb[line], minPrice, maxPrice))
+  })
+  return bbs.map(bb => [bb.lower, bb.middle, bb.upper])
+}
 
 export const prepChanges = (candels: Candel[], period: number, priceDemec: number) => {
   // const priceDemec = 8
