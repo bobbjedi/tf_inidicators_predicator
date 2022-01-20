@@ -1,15 +1,12 @@
 import $u, { Candel } from './utils'
 import * as ind from '@debut/indicators'
-export default (candels: Candel[], period: number, priceDemec: number) => {
-  return prepSma(candels, period, priceDemec)
-}
 
-const prepSma = (candels: Candel[], period: number, n?: number) => {
+export const prepSma = (candels: Candel[], period: number) => {
   const sma = new ind.WEMA(period / 2)
   return $u.normalizeArr(candels.map(c => sma.nextValue(c.close)).filter(v => v))
 }
 
-const prepChanges = (candels: Candel[], period: number, priceDemec: number) => {
+export const prepChanges = (candels: Candel[], period: number, priceDemec: number) => {
   // const priceDemec = 8
   const change0 = $u.mathChangedLast2Candels(candels, 1)
   const change1 = $u.mathChangedLast2Candels($u.resizeCandels(candels, 2), 1)
@@ -39,7 +36,7 @@ const prepChanges = (candels: Candel[], period: number, priceDemec: number) => {
     $u.normalise(change6.volume, -100, 100),
     $u.normalise(change7.volume, -100, 100)
   ]
-  res.price = candels[candels.length - 1].close
+  // res.price = candels[candels.length - 1].close
   return res
   // return [change1.price, change2.price, change3.price, change4.price, change5.price, change6.price]
 }

@@ -1,6 +1,6 @@
 import * as _ from 'underscore'
 import axios from 'axios'
-import prepInput from './prepInput'
+import { prepChanges } from './prepInput'
 // import { SMA } from '@debut/indicators'
 // const sma = new SMA(4)
 type MarketName = 'binance' | 'bittrex' | 'poloniex';
@@ -36,7 +36,7 @@ const prepSet = (candels_: Candel[], period = 28, offset = 1) => {
   const set: Set[] = []
   let lastInput: LastInput = { inp: [], unix: 0, price: 0 }
   arrCandels.forEach((currentCandels, i) => {
-    const input = prepInput(currentCandels, period, 1)
+    const input = prepChanges(currentCandels, period, 1)
     // console.log(input)
     if (!arrCandels[i + offset]) {
       const lastCandel = candels_[candels_.length - 1]

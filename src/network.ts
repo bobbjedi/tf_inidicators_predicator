@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs'
 import * as _ from 'underscore'
-import prepInput from './prepInput'
+import { prepSma } from './prepInput'
 import $u, { Candel } from './utils'
 
 export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback }: { symbol: string; tf_: number, countCandels: number, testCount: number, callback?: (a: Log) => void }) => {
@@ -8,11 +8,12 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
   callback = callback || console.log
 
   tf_ = 720
-  symbol = 'BTC-FTM'
+  symbol = 'USDT-BTC'
   testCount = 100
-  const countCandelsReq = 3
-  const period = 10
+  const countCandelsReq = 4
+  const period = 8
   const normilizeDemension = 5
+
   let candels = await $u.getCandels('binance', symbol, countCandels, tf_) //  баржа, пара, период, TF в минутах
   let c = 1
   let pred = -1
@@ -21,21 +22,21 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
     candels = (await $u.getCandels('binance', symbol, countCandels, tf_, candels[0].open_time * 1000)).concat(candels)
     console.log('End:', candels[0].open_time === pred)
   }
-  const arrCandelsLast = $u.separateArr(candels.slice().splice(-100), period * 2)
+  // const arrCandelsLast = $u.separateArr(candels.slice().splice(-100), period * 2)
   const data = prep3d(candels, { period, normilizeDemension })
-  // const last = prepInput(candels.slice().splice(-100), period * 2, 0)
 
-  const last = arrCandelsLast.map(c => {
-    c = c.slice()
-    return {
-      inp: prepInput(c, period * 2, normilizeDemension).splice(-8),
-      time: _.last(c).open_time * 1000,
-      price: _.last(c).open,
-    }
-  })
+  // const last = arrCandelsLast.map(c => {
+  //   c = c.slice()
+  //   return {
+  //     inp: prepInput(c, period * 2, normilizeDemension).splice(-data[0].input.length),
+  //     time: _.last(c).open_time * 1000,
+  //     price: _.last(c).open,
+  //   }
+  // })
   const testData = data.splice(-testCount)
+  console.log('data:', data)
   console.log('testData:', testData)
-  console.log('Last:', last)
+  // console.log('Last:', last)
 
   const x = data.map(d => d.input)
   const y = data.map(d => d.output)
@@ -53,20 +54,24 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
       }
     }
   })
-  testData.forEach(d => {
-    const p = +(((lstmNet.predict(tf.tensor2d([d.input])) as any).arraySync()[0] as number[])[0] * normilizeDemension).toFixed(1)
-    p > 2.5 && console.log($u.formatDate(d.time), p, ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
+  testData.forEach((d, i) => {
+    const p = ((lstmNet.predict(tf.tensor2d([d.input])) as any).arraySync()[0] as number[]).map(r => +r.toFixed(2))
+    const lastKnown = _.last(d.input)
+    // ;(p[0] > lastKnown || p[1] > lastKnown || p[2] > lastKnown)
+    checkIsUp([lastKnown].concat(p))
+    && console.log($u.formatDate(d.time), [lastKnown].concat(p), d.output, ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
+    // console.log($u.formatDate(d.time), p, ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
   })
-  last.forEach(d => {
-    const p = +(((lstmNet.predict(tf.tensor2d([d.inp])) as any).arraySync()[0] as number[])[0] * normilizeDemension).toFixed(1)
-    console.log('t>', $u.formatDate(d.time), '>>', p, '<<', d.price)
-  })
+  // last.forEach(d => {
+  // const p = +(((lstmNet.predict(tf.tensor2d([d.inp])) as any).arraySync()[0] as number[])[0] * normilizeDemension).toFixed(1)
+  // console.log('t>', $u.formatDate(d.time), '>>', p, '<<', d.price)
+  // })
 
   console.log('Test:', lstmNet.evaluate(tf.tensor2d(testData.map(d => d.input)), tf.tensor2d(testData.map(d => d.output))).toString())
   const prices: number[] = testData.map(d => d.price)
-  const times: number[] = testData.map(d => d.time * 1000)
-  const predicts = await (lstmNet.predict(tf.tensor2d(testData.map(d => d.input))) as any).array()
-  const buy: (0 | 1)[] = predicts.map(p => Math.max(p[1] / p[0], p[2] / p[1]) > 1.4 ? 1 : 0)
+  const times: number[] = testData.map(d => d.time)
+  const predicts = (await (lstmNet.predict(tf.tensor2d(testData.map(d => d.input))) as any).array()) as number[][]
+  const buy: (0 | 1)[] = predicts.map(p => checkIsUp(p) ? 1 : 0)
   const sell: (0 | 1)[] = predicts.map(p => Math.max(p[1] / p[0], p[2] / p[1]) < 1 ? 1 : 0)
   console.log(symbol, tf_, period)
   return { prices, times, buy, sell }
@@ -89,15 +94,15 @@ const lstm = (inputExample: number[], outputExample: number[]) => {
   model.add(tf.layers.dense({ units: 256, activation: 'relu' }))
   // model.add(tf.layers.dense({ units: 256, activation: 'relu' }))
   model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
-  // model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
+  model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
   // model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
   model.add(tf.layers.dense({ units: 64, activation: 'relu' }))
-  // model.add(tf.layers.dense({ units: 128, activation: 'relu' }))
+  // model.add(tf.layers.dense({ units: 32, activation: 'relu' }))
   // model.add(tf.layers.flatten())
 
   model.add(tf.layers.dense({ units: outputExample.length, activation: 'relu' }))
   console.log('REady compile')
-  model.compile({ optimizer: tf.train.adam(), loss: 'meanSquaredError', metrics: ['accuracy'] })
+  model.compile({ optimizer: tf.train.adam(.0001), loss: 'meanSquaredError', metrics: ['accuracy'] })
   console.log('Model:', model.summary())
   console.log('Backend:', tf.getBackend())
   return model
@@ -108,19 +113,28 @@ const prep3d = (candels: Candel[], opt: { normilizeDemension: number, period: nu
   const arrCandels = $u.separateArr(candels.slice(), period * 2)
   const data = arrCandels.map(c_ => {
     const c = c_.slice()
-    const input = prepInput(c, period * 2, normilizeDemension)
-    const output = input.splice(-3)
-    const lastC = c.splice(-3)
+    const input = prepSma(c, period).splice(-period)
+    // console.log(input)
+    const output = input.splice(-2)
+    const lastC = c.splice(-2)
     const bestPrice = Math.max(...lastC.map(c => c.close))
+    // console.log(output, $u.percentChange(lastC[0].open, bestPrice))
     return {
       input,
-      output: [$u.normalise($u.percentChange(lastC[0].open, bestPrice), 0, normilizeDemension)],
+      // output: [$u.normalise($u.percentChange(lastC[0].open, bestPrice), 0, normilizeDemension)],
+      output,
       time: lastC[0].open_time * 1000,
       price: lastC[0].open,
       bestPrice
     }
   })
   return data
+}
+
+const checkIsUp = (arr: number[]) => {
+  return arr.reduce((res, c, i) => {
+    return res && c < (arr[i + 1] || Infinity)
+  }, true)
 }
 
 export type Log = { iterations: number, error: number }
@@ -200,36 +214,36 @@ const perceptronFromTFJS = (hiddenLayers: number[], activation: any = 'relu') =>
 
 setTimeout(async () => {
   return
-  const setdata = _.shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]).map(e => e / 15)
-  const set = $u.separateArr($u.separateArr(setdata, 3), 3)
-  console.log(set)
-  const lstmNet = lstm(set[0])
-  console.log(':LL', lstmNet)
+  // const setdata = _.shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]).map(e => e / 15)
+  // const set = $u.separateArr($u.separateArr(setdata, 3), 3)
+  // console.log(set)
+  // const lstmNet = lstm(set[0])
+  // console.log(':LL', lstmNet)
 
-  const inputs: number[][][] = []
-  const outputs: number[][] = []
-  set.forEach((input, i) => {
-    if (!set[i + 1]) {
-      return
-    }
-    inputs.push(input)
-    outputs.push(set[i + 1][2])
-  })
-  const x = tf.tensor3d(inputs)
-  const y = tf.tensor2d(outputs)
-  await lstmNet.fit(x, y, {
-    epochs: 100,
-    // batchSize: 1,
-    callbacks: {
-      onEpochEnd (epoch, log) {
-        epoch > 3 && console.log(epoch, log)
-      }
-    }
-  })
-  inputs.forEach((input, i) => {
-    const predict = (lstmNet.predict(tf.tensor3d([input])) as any).arraySync()[0] as number[]
-    console.log(input, predict.map(e => +(e * 15).toFixed()), outputs[i].map(e => e * 15))
-  })
+  // const inputs: number[][][] = []
+  // const outputs: number[][] = []
+  // set.forEach((input, i) => {
+  //   if (!set[i + 1]) {
+  //     return
+  //   }
+  //   inputs.push(input)
+  //   outputs.push(set[i + 1][2])
+  // })
+  // const x = tf.tensor3d(inputs)
+  // const y = tf.tensor2d(outputs)
+  // await lstmNet.fit(x, y, {
+  //   epochs: 100,
+  //   // batchSize: 1,
+  //   callbacks: {
+  //     onEpochEnd (epoch, log) {
+  //       epoch > 3 && console.log(epoch, log)
+  //     }
+  //   }
+  // })
+  // inputs.forEach((input, i) => {
+  //   const predict = (lstmNet.predict(tf.tensor3d([input])) as any).arraySync()[0] as number[]
+  //   console.log(input, predict.map(e => +(e * 15).toFixed()), outputs[i].map(e => e * 15))
+  // })
 }, 1000)
 // const dataEl = opt.data[0]
 // const inputShape = tf.tensor2d(dataEl.input).shape
