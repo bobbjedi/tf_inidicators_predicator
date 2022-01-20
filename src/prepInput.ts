@@ -1,8 +1,13 @@
 import $u, { Candel } from './utils'
 import * as ind from '@debut/indicators'
 
-export const prepSma = (candels: Candel[], period: number) => {
-  const sma = new ind.WEMA(period / 2)
+export const prepWEMA = (candels: Candel[], period: number) => {
+  const wema = new ind.WEMA(period)
+  return $u.normalizeArr(candels.map(c => wema.nextValue(c.close)).filter(v => v))
+}
+
+export const prepSMA = (candels: Candel[], period: number) => {
+  const sma = new ind.SMA(period)
   return $u.normalizeArr(candels.map(c => sma.nextValue(c.close)).filter(v => v))
 }
 

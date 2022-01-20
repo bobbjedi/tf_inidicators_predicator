@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs'
 import * as _ from 'underscore'
-import { prepSma } from './prepInput'
+import { prepSMA, prepWEMA } from './prepInput'
 import $u, { Candel } from './utils'
 
 export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback }: { symbol: string; tf_: number, countCandels: number, testCount: number, callback?: (a: Log) => void }) => {
@@ -54,14 +54,14 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
       }
     }
   })
-  testData.forEach((d, i) => {
-    const p = ((lstmNet.predict(tf.tensor2d([d.input])) as any).arraySync()[0] as number[]).map(r => +r.toFixed(2))
-    const lastKnown = _.last(d.input)
-    // ;(p[0] > lastKnown || p[1] > lastKnown || p[2] > lastKnown)
-    checkIsUp([lastKnown].concat(p))
-    && console.log($u.formatDate(d.time), [lastKnown].concat(p), d.output, ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
-    // console.log($u.formatDate(d.time), p, ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
-  })
+  // testData.forEach((d, i) => {
+  //   const p = ((lstmNet.predict(tf.tensor2d([d.input])) as any).arraySync()[0] as number[]).map(r => +r.toFixed(2))
+  //   const lastKnown = _.last(d.input)
+  //   // ;(p[0] > lastKnown || p[1] > lastKnown || p[2] > lastKnown)
+  //   checkIsUp([lastKnown].concat(p))
+  //   && console.log($u.formatDate(d.time), [lastKnown].concat(p), d.output, ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
+  //   // console.log($u.formatDate(d.time), p, ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
+  // })
   // last.forEach(d => {
   // const p = +(((lstmNet.predict(tf.tensor2d([d.inp])) as any).arraySync()[0] as number[])[0] * normilizeDemension).toFixed(1)
   // console.log('t>', $u.formatDate(d.time), '>>', p, '<<', d.price)
@@ -72,8 +72,10 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
   const times: number[] = testData.map(d => d.time)
   const predicts = (await (lstmNet.predict(tf.tensor2d(testData.map(d => d.input))) as any).array()) as number[][]
   let isBuy = false
-  const buy: (0 | 1)[] = predicts.map(p => {
+  const buy: (0 | 1)[] = predicts.map((p, i) => {
     if (checkIsUp(p) && !isBuy) {
+      const d = testData[i]
+      console.log($u.formatDate(d.time), ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
       isBuy = true
       return 1
     }
@@ -121,7 +123,7 @@ const prep3d = (candels: Candel[], opt: { normilizeDemension: number, period: nu
   const arrCandels = $u.separateArr(candels.slice(), period * 2)
   const data = arrCandels.map(c_ => {
     const c = c_.slice()
-    const input = prepSma(c, period).splice(-period)
+    const input = prepWEMA(c, period).splice(-period)
     // console.log(input)
     const output = input.splice(-2)
     const lastC = c.splice(-2)
