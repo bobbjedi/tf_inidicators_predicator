@@ -12,7 +12,7 @@ const getUsers = (fightersStamina: number[]) => {
   return users
 }
 const u = getUsers([1])
-type User = typeof u[0];
+  type User = typeof u[0];
 const getCombos = (user: User, enemy: User[]) => {
   return [
     [[user, enemy[0]], [enemy[1], enemy[2]]],
