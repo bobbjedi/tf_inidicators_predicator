@@ -7,6 +7,7 @@
     "dev": "webpack --mode development --watch",
     "node": "tsc --project tsconfig.node.json --watch",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "cand": "tsc src/saveCand.ts --watch",
     "push": "git push https://github.com/jinglescode/time-series-forecasting-tensorflowjs.git master"
   },
   "repository": {

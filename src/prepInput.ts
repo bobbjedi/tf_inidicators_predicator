@@ -11,6 +11,27 @@ export const prepSMA = (candels: Candel[], period: number) => {
   return $u.normalizeArr(candels.map(c => sma.nextValue(c.close)).filter(v => v))
 }
 
+export const prepLWMA = (candels: Candel[], period: number) => {
+  const sma = new ind.LWMA(period)
+  return $u.normalizeArr(candels.map(c => sma.nextValue(c.close)).filter(v => v))
+}
+export const prepROC = (candels: Candel[], period: number) => {
+  const i = new ind.ROC(period)
+  return $u.normalizeArr(candels.map(c => i.nextValue(c.close)).filter(v => v))
+}
+export const prepAC = (candels: Candel[], period: number) => {
+  const i = new ind.AO(period, period / 2)
+  return $u.normalizeArr(candels.map(c => i.nextValue(c.max, c.min)).filter(v => v))
+}
+export const prepRSI = (candels: Candel[], period: number) => {
+  const i = new ind.RSI(period)
+  return $u.normalizeArr(candels.map(c => i.nextValue(c.close)).filter(v => v))
+}
+export const prepMACD = (candels: Candel[], period: number) => {
+  const i = new ind.MACD(8, 17, 9)
+  return $u.normalizeArr(candels.map(c => i.nextValue(c.close)?.macd).filter(v => v))
+}
+
 export const prepChanges = (candels: Candel[], period: number, priceDemec: number) => {
   // const priceDemec = 8
   const change0 = $u.mathChangedLast2Candels(candels, 1)

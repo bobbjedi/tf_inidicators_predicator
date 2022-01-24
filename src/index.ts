@@ -50,7 +50,7 @@ async function onClickTrainModel (symbol: string, tf: number, countCandels: numb
   const avg = (pricesMin + pricesMax) / 2
   Plotly.newPlot(graph_plot, [{ x: times.map($u.formatDate), y: prices, name: 'Price' }], { margin: { t: 0 } })
   Plotly.plot(graph_plot, [{ x: [], y: [] }])
-  Plotly.plot(graph_plot, [{ x: times.map($u.formatDate), y: buy.map((r, i) => r ? prices[i] : 0), name: 'Buy' }], { margin: { t: 0 } })
+  Plotly.plot(graph_plot, [{ x: times.map($u.formatDate), y: buy.map((r, i) => r ? r * pricesMax : pricesMin), name: 'Buy' }], { margin: { t: 0 } })
   // Plotly.plot(graph_plot, [{ x: times.map($u.formatDate), y: sell.map(r => r ? pricesMin * 1.1 : avg), name: 'Sell' }], { margin: { t: 0 } })
   $('#load_validating').hide()
 
