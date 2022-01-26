@@ -4,9 +4,12 @@ export default (candels: Candel[], period: number, priceDemec: number) => {
   return prepChanges(candels, period, priceDemec)
 }
 
-const prepSma = (candels: Candel[], period: number) => {
+export const prepSma = (candels: Candel[], period: number) => {
   const sma = new ind.WEMA(period / 2)
-  return $u.normalizeArr(candels.map(c => sma.nextValue(c.close)).filter(v => v))
+  const res = $u.normalizeArr(candels.map(c => sma.nextValue(c.close)).filter(v => v))
+  res.price = candels[candels.length - 1].close
+  res.time = candels[candels.length - 1].close_time
+  return res
 }
 
 const prepChanges = (candels: Candel[], period: number, priceDemec: number) => {
