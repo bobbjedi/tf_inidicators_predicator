@@ -150,7 +150,83 @@ function mathChangedLast2Candels (candels: Candel[], round = 8) {
     price
   }
 }
+function resize (candels: Candel[], crat: number) {
+  let parts: Candel[][] = []
+  while (candels.length) {
+    parts.unshift(candels.splice(-crat))
+  }
+  return parts.map(cnds => {
+    // const max = Math.max(...cnds.map(c => c.max))
+    // const min = Math.max(...cnds.map(c => c.min))
+    // const open = cnds[0].open
+    // const close = cnds[cnds.length - 1].close
+    // const open_time = cnds[0].open_time
+    // const close_time = cnds[cnds.length - 1].close_time
+    // const volume = cnds.reduce((s, c) => {
+    //   return s + c.volume
+    // }, 0)
+    return {
+      max: Math.max(...cnds.map(c => c.max)),
+      min: Math.min(...cnds.map(c => c.min)),
+      open: cnds[0].open,
+      close: cnds[cnds.length - 1].close,
+      open_time: cnds[0].open_time,
+      close_time: cnds[cnds.length - 1].close_time,
+      volume: cnds.reduce((s, c) => {
+        return s + c.volume
+      }, 0)
+    }
+  })
+}
 
+// const can: Candel[] = [
+//   {
+//     max: 1.9,
+//     min: 1.1,
+//     open: 1.5,
+//     close: 1.6,
+//     open_time: 1,
+//     close_time: 2,
+//     volume: 1
+//   },
+//   {
+//     max: 2.9,
+//     min: 2.1,
+//     open: 2.5,
+//     close: 2.6,
+//     open_time: 2,
+//     close_time: 3,
+//     volume: 2
+//   },
+//   {
+//     max: 3.9,
+//     min: 3.1,
+//     open: 3.5,
+//     close: 3.6,
+//     open_time: 3,
+//     close_time: 4,
+//     volume: 3
+//   },
+//   {
+//     max: 4.9,
+//     min: 4.1,
+//     open: 4.5,
+//     close: 4.6,
+//     open_time: 4,
+//     close_time: 5,
+//     volume: 4
+//   },
+//   {
+//     max: 5.9,
+//     min: 5.1,
+//     open: 5.5,
+//     close: 5.6,
+//     open_time: 5,
+//     close_time: 6,
+//     volume: 5
+//   },
+// ]
+// console.log('>>>.', resize(can, 3))
 function resizeCandels (Candels: Candel[], crat: number) {
   const newCandels: Candel[] = []
   const candels: Candel[] = JSON.parse(JSON.stringify(Candels))
@@ -386,6 +462,7 @@ const $u = {
   prepSet,
   mathChangedLast2Candels,
   resizeCandels,
+  resize,
   percentChange,
   formatDate,
   normalise (numb: number, min: number, max: number) {

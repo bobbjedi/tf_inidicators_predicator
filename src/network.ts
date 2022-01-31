@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs'
 import * as _ from 'underscore'
-import { prepWEMA, prepROC, prepAC, prepMACD } from './prepInput'
+import { prepWEMA, prepROC, prepAC } from './prepInput'
 import $u, { Candel } from './utils'
 
 export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback }: { symbol: string; tf_: number, countCandels: number, testCount: number, callback?: (a: Log) => void }) => {
@@ -8,11 +8,11 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
   callback = callback || console.log
 
   tf_ = 720
+  const testTf = 15
   symbol = 'USDT-BTC'
-  testCount = 1000
   const countCandelsReq = 15
   const epochs = 20
-  const period = 8
+  const period = 10
   const normilizeDemension = 5
 
   let candels = await $u.getCandels('binance', symbol, countCandels, tf_) //  баржа, пара, период, TF в минутах
@@ -28,24 +28,23 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
     candels = newCandels.concat(candels)
     console.log(c, $u.formatDate(candels[0].open_time * 1000), 'End:', candels.length, candels[0].open_time === pred)
   }
-  // candels = $u.resizeCandels(candels, 2)
-  const arrCandelsLast = $u.separateArr(candels.splice(-testCount), period * 2)
-  const data = prep3d(candels, { period, normilizeDemension })
 
-  // const tesCandels = $u.separateArr($u.resizeCandels(await $u.getCandels('binance', symbol, countCandels, 360), 2), period * 2)
-  const testData = arrCandelsLast.map(c => {
-    c = c.slice()
-    return {
-      input: [
-        prepWEMA(c, period).splice(-data[0].input[0].length),
-        // prepROC(c, period).splice(-data[0].input[0].length),
-        // prepAC(c, period).splice(-data[0].input[0].length),
-      ],
-      time: _.last(c).close_time * 1000,
-      price: _.last(c).close,
-      bestPrice: 0
+  const data = prep3d(candels, { period, normilizeDemension })
+  let testCandels = await $u.getCandels('binance', symbol, countCandels, testTf) //  баржа, пара, период, TF в минутах
+  let cT = 1
+  let predT = -1
+  while (cT++ < countCandelsReq) {
+    predT = testCandels[0]?.open_time
+    const newCandels = (await $u.getCandels('binance', symbol, countCandels, testTf, testCandels[0].open_time * 1000))
+    if (newCandels[0].open_time === predT) {
+      console.log('End history...')
+      break
     }
-  })
+    testCandels = newCandels.concat(testCandels)
+    console.log(cT, $u.formatDate(testCandels[0].open_time * 1000), 'End:', testCandels.length, testCandels[0].open_time === predT)
+  }
+  console.log('testTf last', $u.formatDate(_.last(testCandels).close_time), testCandels)
+  const testData = prep3d($u.resize(testCandels, tf_ / testTf), { period, normilizeDemension })
   // const testData = data.splice(-testCount)
   console.log('data:', data)
   console.log('testData:', testData)
@@ -67,38 +66,43 @@ export const trainNet = async ({ symbol, tf_, countCandels, testCount, callback 
       }
     }
   })
-  // testData.forEach((d, i) => {
-  //   const p = ((lstmNet.predict(tf.tensor2d([d.input])) as any).arraySync()[0] as number[]).map(r => +r.toFixed(2))
-  //   const lastKnown = _.last(d.input)
-  //   // ;(p[0] > lastKnown || p[1] > lastKnown || p[2] > lastKnown)
-  //   checkIsUp([lastKnown].concat(p))
-  //   && console.log($u.formatDate(d.time), [lastKnown].concat(p), d.output, ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
-  //   // console.log($u.formatDate(d.time), p, ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
-  // })
-  // last.forEach(d => {
-  // const p = +(((lstmNet.predict(tf.tensor2d([d.inp])) as any).arraySync()[0] as number[])[0] * normilizeDemension).toFixed(1)
-  // console.log('t>', $u.formatDate(d.time), '>>', p, '<<', d.price)
-  // })
 
-  // console.log('Test:', lstmNet.evaluate(tf.tensor2d(testData.map(d => d.input)), tf.tensor2d(testData.map(d => d.output))).toString())
   const prices: number[] = testData.map(d => d.price)
   const times: number[] = testData.map(d => d.time)
   const predicts = (await (lstmNet.predict(tf.tensor3d(testData.map(d => d.input))) as any).array()) as number[][]
   let isBuy = false
   // const buy: (0 | 1)[] = predicts.map((p, i) => {
   const buy: number[] = predicts.map((p, i) => {
-    // const d = testData[i]
-    // const nn = _.last(d.input[0]) < p[0]
-    const isCheck = p[0] > .1
+    const d = testData[i]
+    // const isCheck = input[input.length - 2] > input[input.length - 1] && Math.max(...p) / input[input.length - 2] > 1.4
+    // const isCheck = checkIsUp([_.last(input)].concat(p))
+    const isCheck = checkIsUp(p)
     if (isCheck && !isBuy) {
-      // console.log($u.formatDate(d.time), ' >>> ', +$u.percentChange(d.price, d.bestPrice).toFixed(0), ' <<<', d.price, '->', d.bestPrice)
+      console.log($u.formatDate(d.time), ' BUY ', +$u.percentChange(d.price, d.bestPrice).toFixed(1), ' <<<', d.price, '->', d.bestPrice)
       isBuy = true
-      return p[0]
+      return 1
     }
     isBuy = isCheck
     return 0
   })
-  const sell: (0 | 1)[] = predicts.map(p => Math.max(p[1] / p[0], p[2] / p[1]) < 1 ? 1 : 0)
+
+  let isSell = false
+  // const buy: (0 | 1)[] = predicts.map((p, i) => {
+  const sell: number[] = predicts.map((p, i) => {
+    const d = testData[i]
+    // const nn = _.last(d.input[0]) < p[0]
+    const input = d.input[0]
+    const isCheck = input[input.length - 2] < input[input.length - 1] && input[input.length - 1] > p[0] && p[0] > p[1] && p[1] > p[2]
+    // const isCheck = input[input.length - 1] < p[0] && p[0] < p[1]
+    if (isCheck && !isSell) {
+      console.log($u.formatDate(d.time), ' SELL ', +$u.percentChange(d.price, d.bestPrice).toFixed(1), ' <<<', d.price, '->', d.bestPrice)
+      isSell = true
+      return 1
+    }
+    isSell = isCheck
+    return 0
+  })
+
   console.log(symbol, tf_, period)
   return { prices, times, buy, sell }
 }
@@ -144,13 +148,13 @@ const prep3d = (candels: Candel[], opt: { normilizeDemension: number, period: nu
     const input3 = prepAC(c, period).splice(-period)
     // const input4 = prepMACD(c, period).splice(-period)
     // console.log(input)
-    // const output = input1.splice(-2)
-    input1.splice(-2)
-    input2.splice(-2)
-    input3.splice(-2)
+    const output = input1.splice(-3)
+    // input1.splice(-2)
+    input2.splice(-3)
+    input3.splice(-3)
     // input4.splice(-2)
 
-    const lastC = c.splice(-2)
+    const lastC = c.splice(-3)
     const bestPrice = Math.max(...lastC.map(c => c.close))
     // console.log(output, $u.percentChange(lastC[0].open, bestPrice))
     return {
@@ -160,8 +164,8 @@ const prep3d = (candels: Candel[], opt: { normilizeDemension: number, period: nu
         // input3,
         // input4
       ],
-      output: [$u.normalise($u.percentChange(lastC[0].open, bestPrice), 0, normilizeDemension)],
-      // output,
+      // output: [$u.normalise($u.percentChange(lastC[0].open, bestPrice), 0, normilizeDemension)],
+      output,
       time: lastC[0].open_time * 1000,
       price: lastC[0].open,
       bestPrice
@@ -171,12 +175,12 @@ const prep3d = (candels: Candel[], opt: { normilizeDemension: number, period: nu
 }
 
 const checkIsUp = (arr: number[]) => {
-  // return arr.reduce((res, c, i) => {
-  //   return res && c < (arr[i + 1] || Infinity)
-  // }, true)
+  return arr.reduce((res, c, i) => {
+    return res && c < (arr[i + 1] || Infinity)
+  }, true)
   // return _.last(arr) > .2
   // return arr[1] / arr[0] > 1.1 || arr[2] / arr[1] > 1.1
-  return arr[1] > arr[0]
+  // return arr[1] > arr[0]
 }
 
 export type Log = { iterations: number, error: number }
